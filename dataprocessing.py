@@ -2,7 +2,7 @@ import os
 import numpy
 import nltk
 from nltk.corpus import cmudict
- 
+import re
 
 d = cmudict.dict()
 def nsyl(word):
@@ -21,11 +21,51 @@ def loadShakespeare():
     if line.isdigit():
       sonnets.append(sonnet)
       sonnet = []
+    elif line.strip() == '':
+      pass
     else:
       sonnet.append(line)
   sonnets.append(sonnet)
   del sonnets[0]
   return sonnets
 
+def processWord(word):
+  word = word.strip(',')
+  word = word.strip('.')
+  word = word.strip('!')
+  word = word.strip('?')
+  word = word.replace("'", "")
+  word = word.lower()  
+  return word
+
+def createBag():
+  '''Converts each word to an id'''
+  a = loadShakespeare()
+  words = {}
+  dictid = 0
+  for sonnet in a:
+    for line in sonnet:
+      line = re.findall(r"[\w']+", line)
+      for word in line:
+        word = processWord(word)
+        if word not in words:
+          words[word] = dictid
+          dictid += 1
+  return words
+
+def convertToBag(line):
+  '''Converts line to bag representation'''
+  bagdict = createBag()
+  bagrep = []
+  line = re.findall(r"[\w']+", line)
+  for word in line:
+    word = processWord(word)
+    bagrep.append(bagdict[word])
+  return bagrep
 
 
+def exampleUsage():
+  a = loadShakespeare()
+  print a[100][0]
+  print convertToBag(a[100][0])
+  
