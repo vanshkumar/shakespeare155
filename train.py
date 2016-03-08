@@ -60,6 +60,30 @@ def EStep(pos_states, pos_observations, state_seq, A, O):
     
     return np.transpose(E)
 
+
+# state_space is all possible states x (length L)
+# start_probs are the start probabiliies (length L)
+# observs is our sequence of observations (length M)
+# transition is matrix of transition probabilities between y_j, y_i (size LxL)
+# emission is matrix of prob of observing y from x (size Lxm)
+
+# Performs the forward algorithm, returning a vector of the probabilities of
+# the final states & a list of the normalizing coefficient at each step
+def forward(state_space, start_probs, observs, transition, emission):
+    M = len(observs)
+    fwd_probs = np.array(start_probs)
+
+    # Do the iterative forward algorithm
+    for i in range(M):
+        # Update probabilities iteratively
+        fwd_next = np.dot(fwd_probs[:, -1], transition)
+        fwd_next = np.dot(fwd_next, np.diag(emission[:, observs[i]]))
+
+        fwd_probs = np.append(fwd_probs, fwd_next, 1)
+
+    return fwd_probs
+
+
 def Forward(num_states, obs, A, O):
     """Computes the probability a given HMM emits a given observation using the
         forward algorithm. This uses a dynamic programming approach, and uses
