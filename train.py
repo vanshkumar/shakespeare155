@@ -78,12 +78,12 @@ def EStep(state_space, observs, transition, emission):
 # internal states
 def forward(state_space, start_probs, observs, transition, emission):
     M = len(observs)
-    fwd_probs = np.array(start_probs)
+    fwd_probs = np.array(start_probs).T
 
     # Do the iterative forward algorithm
     for i in range(M):
-        fwd_next = np.dot(fwd_probs[:, -1], transition)
-        fwd_next = np.dot(fwd_next, np.diag(emission[:, observs[i]]))
+        fwd_next = np.dot(transition, np.diag(emission[:, observs[i]]))
+        fwd_next = np.dot(fwd_next, fwd_probs[:, -1])
 
         fwd_probs = np.append(fwd_probs, fwd_next, 1)
 
@@ -93,12 +93,13 @@ def forward(state_space, start_probs, observs, transition, emission):
 # internal states
 def backward(state_space, observs, transition, emission):
     M = len(observs)
-    fwd_probs = np.array(start_probs)
-    bwd_probs = np.array([1] * L)
+    bwd_probs = np.array([1] * L).T
+
     # i is reversed from the forward algorithm
     for i in reversed(range(M)):
-        bwd_prev = np.dot(bwd_probs[:,0], transition)
-        bwd_prev = np.dot(bwd_prev, np.diag(emission[:, observs[i]]))
+        bwd_prev = np.dot(transition, np.diag(emission[:, observs[i]]))
+        bwd_prev = np.dot(bwd_prev, bwd_probs[:,0])
+        
         # append in the opposite order so that the prev column is always in the 
         # front
         bwd_probs = np.append(bwd_prev, bwd_probs, 1)
