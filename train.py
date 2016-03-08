@@ -1,34 +1,5 @@
-
-
-def main():
-    raw_moods = []
-    raw_genres = []
-
-    with open('./data/ron.txt', 'r') as f:  # read in Ron's data
-        for line in f.readlines():
-            mood, genre = line.strip().split('\t')
-            raw_moods.append(mood)
-            raw_genres.append(genre)
-
-    # maps moods to numbers
-    moods = {'happy': 0, 'mellow': 1, 'sad': 2, 'angry': 3}
-
-    # list of music genres
-    # maps genres to numbers
-    genres = {'rock': 0, 'pop': 1, 'house': 2, 'metal': 3, 'folk': 4,
-              'blues': 5, 'dubstep': 6, 'jazz': 7, 'rap': 8, 'classical': 9}
-
-    # numerical data of Ron's moods and music genres
-    state_seq = [moods[x] for x in raw_moods]
-    obs_seq = [genres[x] for x in raw_genres]
-
-    A, O = MStep(moods, genres, state_seq, obs_seq)
-
-    A_str = latex_matrix(A)
-    O_str = latex_matrix(O)
-    with open('1G.txt', 'w') as f:
-        f.write(A_str)
-        f.write(O_str)
+import numpy as np
+from operator import itemgetter as get
 
 
 def latex_matrix(matrix):
@@ -76,5 +47,16 @@ def MStep(pos_states, pos_observations, state_seq, obs_seq):
 
     return A, O
 
-if __name__ == '__main__':
-    main()
+
+def EStep(pos_states, pos_observations, state_seq, A, O):
+
+    E = np.zeros([len(state_seq), len(pos_states)])
+
+    E[0] = [O[i][state_seq[0]] for i in range(len(pos_states))]
+
+    for x in range(1, M):
+        for i in range(L):
+            E[x][i] = max([A[j][i] * O[i][X[x]]*E[j][0] for j in range(len(pos_states))])
+
+    return np.transpose(E)
+
