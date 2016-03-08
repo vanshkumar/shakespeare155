@@ -31,7 +31,7 @@ def MStep(state_space, observs, E, m):
 
         for j in range(M):
             val = observs[j] # jth emission in sequence
-            emission[i, val] += E[i, val]
+            emission[i, val] += E[i, j]
         emission[i, :] /= norm
 
     return transition, emission
