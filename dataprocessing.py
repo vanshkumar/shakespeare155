@@ -68,4 +68,3 @@ def exampleUsage():
   a = loadShakespeare()
   print a[100][0]
   print convertToBag(a[100][0])
-  

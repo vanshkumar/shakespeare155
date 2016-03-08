@@ -1,5 +1,4 @@
 import numpy as np
-from operator import itemgetter as get
 from dataprocessing import *
 
 def latex_matrix(matrix):
@@ -12,10 +11,19 @@ def latex_matrix(matrix):
     return matrix_str
 
 
-# E[i, j] = P(y_j = i), shape is L x M
-# m is emission.shape[1] (size of observation space)
-def MStep(state_space, observs, E, m):
+# Define our arguments and their respective sizes
+
+# state_space is all possible states y (length L)
+# obs_space is all possible observations x (length m)
+# start_probs are the start probabiliies (length L)
+# observs is our sequence of observations (length M)
+# transition is matrix of transition probabilities between y_j, y_i (size LxL)
+# emission is matrix of prob of observing y from x (size Lxm)
+# E is our matrix of P(y_i)'s. E[i, j] = P(y_j = i), size LxM
+
+def MStep(state_space, obs_space, observs, E):
     L = len(state_space)
+    m = len(obs_space)
 
     transition = np.zeros((L, L))
     emission   = np.zeros((L, m))
@@ -37,10 +45,10 @@ def MStep(state_space, observs, E, m):
     return transition, emission
 
 
-def EStep(state_space, observs, transition, emission):
-    m = emission.shape[1]
+def EStep(state_space, obs_space, observs, transition, emission):
     M = len(observs)
     L = len(state_space)
+    m = len(obs_space)
 
     # Run fwd-bckwd with uniform start probabilities
     uniform     = [1./L  for i in range(L)]
@@ -57,14 +65,7 @@ def EStep(state_space, observs, transition, emission):
     return E
 
 
-# state_space is all possible states x (length L)
-# start_probs are the start probabiliies (length L)
-# observs is our sequence of observations (length M)
-# transition is matrix of transition probabilities between y_j, y_i (size LxL)
-# emission is matrix of prob of observing y from x (size Lxm)
-
-# Performs the forward algorithm, returning matrix of probabilities of
-# internal states
+# Performs the forward algorithm, returning matrix of probabilities
 def forward(state_space, start_probs, observs, transition, emission):
     M = len(observs)
     fwd_probs = np.array(start_probs).T
@@ -78,8 +79,8 @@ def forward(state_space, start_probs, observs, transition, emission):
 
     return fwd_probs
 
-# Performs the backward algorithm, returning matrix of probabilities of
-# internal states
+
+# Performs the backward algorithm, returning matrix of probabilities
 def backward(state_space, observs, transition, emission):
     M = len(observs)
     bwd_probs = np.array([1] * L).T
@@ -89,8 +90,26 @@ def backward(state_space, observs, transition, emission):
         bwd_prev = np.dot(transition, np.diag(emission[:, observs[i]]))
         bwd_prev = np.dot(bwd_prev, bwd_probs[:,0])
 
-        # append in the opposite order so that the prev column is always in the 
-        # front
+        # append in the opposite order so prev column is always in front
         bwd_probs = np.append(bwd_prev, bwd_probs, 1)
         
     return bwd_probs
+
+# eps is our stopping condition
+# observs is all of our training examples
+def EM_algorithm(state_space, obs_space, transition, emission, observs, eps, epoch_size):
+    norm_diff = eps + 1
+
+    while norm_diff > eps:
+        transition_new = np.copy(transition)
+        emission_new   = np.copy(emission)
+        for i in range(epoch_size):
+            E = EStep(state_space, obs_space, observs, transition_new, emission_new)
+            transition_new, emission_new = MStep(state_space, obs_space, observs, E)
+
+        norm_diff  = np.linalg.norm(transition - transition_new) + \
+                     np.linalg.norm(emission - emission_new)
+        transition = transition_new
+        emission   = emission_new
+
+    return transition, emission
