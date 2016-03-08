@@ -26,7 +26,7 @@ def MStep(state_space, observs, E, m):
         norm = np.sum(E[:, i])
 
         for j in range(M-1):
-            transition[i, :] += E[i, j] * E[:, j+1].T
+            transition[i, :] += E[i, j] * E[j+1, :]
         transition[i, :] /= norm
 
         for j in range(M):
