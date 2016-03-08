@@ -1,6 +1,6 @@
 import numpy as np
 from operator import itemgetter as get
-
+from dataprocessing import *
 
 def latex_matrix(matrix):
     matrix_str = '\\begin{bmatrix}\n'
@@ -56,7 +56,59 @@ def EStep(pos_states, pos_observations, state_seq, A, O):
 
     for x in range(1, M):
         for i in range(L):
-            E[x][i] = max([A[j][i] * O[i][X[x]]*E[j][0] for j in range(len(pos_states))])
-
+            E[x][i] = sum([A[j][i] * O[i][X[x]]*E[j][0] for j in range(len(pos_states))])
+    
     return np.transpose(E)
 
+def Forward(num_states, obs, A, O):
+    """Computes the probability a given HMM emits a given observation using the
+        forward algorithm. This uses a dynamic programming approach, and uses
+        the 'prob' matrix to store the probability of the sequence at each length.
+        Arguments: num_states the number of states
+                   obs        an array of observations
+                   A          the transition matrix
+                   O          the observation matrix
+        Returns the probability of the observed sequence 'obs'
+    """
+    len_ = len(obs)                   # number of observations
+    # stores p(seqence)
+    prob = [[[0.] for i in range(num_states)] for i in range(len_)]
+    
+    # initializes uniform state distribution, factored by the
+    # probability of observing the sequence from the state (given by the
+    # observation matrix)
+    prob[0] = [(1. / num_states) * O[j][obs[0]] for j in range(num_states)]
+    # We iterate through all indices in the data
+    for length in range(1, len_):   # length + 1 to avoid initial condition
+        for state in range(num_states):
+            # stores the probability of transitioning to 'state'
+            p_trans = 0
+
+            # probabilty of observing data in our given 'state'
+            p_obs = O[state][obs[length]]
+
+            # We iterate through all possible previous states, and update
+            # p_trans accordingly.
+            for prev_state in range(num_states):
+                p_trans += prob[length - 1][prev_state] * A[prev_state][state]
+
+            prob[length][state] = p_trans * p_obs  # update probability
+
+        prob[length] = prob[length][:]  # copies by value
+    # start backwards code
+    prob_back = [[0.] for i in range(len_)]    
+    prob_back[-1] = [1 for j in range(num_states)]    
+    for length in reversed(range(0, len_ - 1)):
+        for state in range(num_states):
+            prob_back[length][state] = sum([prob[length + 1][j] * A[j][state] * O[j][obs[length]] for j in range(num_states)])
+    # end backwards code
+    # start finding the actual probabilities
+    P = [[[0.] for i in range(num_states)] for i in range(len_)]
+    
+    for length in range(len_):
+        for state in range(num_states):
+            P[length][state] = prob[length][state] * prob_back[length][state] / \
+                sum([prob[length][j] * prob_back[length][j] for j in range(num_states)])
+    # end computing the probabilities
+    # return total probability
+    return P
