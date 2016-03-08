@@ -12,7 +12,7 @@ def latex_matrix(matrix):
     return matrix_str
 
 
-# E[i, j] = P(y_i = j), shape is M x L
+# E[i, j] = P(y_j = i), shape is L x M
 # m is emission.shape[1] (size of observation space)
 def MStep(state_space, observs, E, m):
     L = len(state_space)
@@ -26,7 +26,7 @@ def MStep(state_space, observs, E, m):
         norm = np.sum(E[:, i])
 
         for j in range(M-1):
-            transition[i, :] += E[i, j] * E[j+1, :]
+            transition[i, :] += E[i, j] * E[:, j+1].T
         transition[i, :] /= norm
 
         for j in range(M):
@@ -54,7 +54,7 @@ def EStep(state_space, observs, transition, emission):
         dotprod = np.dot(fwd_probs[:, i].T, bckwd_probs[:, i])
         E[:, i] = fwd_probs[:, i] * bckwd_probs[:, i] / dotprod
     
-    return E.T
+    return E
 
 
 # state_space is all possible states x (length L)
