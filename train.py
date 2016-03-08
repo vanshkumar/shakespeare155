@@ -23,7 +23,7 @@ def MStep(state_space, observs, E, m):
     # Calculate transition and emission matrix
     for i in range(L):
         # Normalization factor for both matrices
-        norm = np.sum(E[:, i])
+        norm = np.sum(E[i, :])
 
         for j in range(M-1):
             transition[i, :] += E[i, j] * E[:, j+1].T
