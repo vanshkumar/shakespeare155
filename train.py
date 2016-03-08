@@ -48,17 +48,24 @@ def MStep(pos_states, pos_observations, state_seq, obs_seq):
     return A, O
 
 
-def EStep(pos_states, pos_observations, state_seq, A, O):
+def EStep(state_space, observs, transition, emission):
+    m = emission.shape[1]
+    M = len(observs)
+    L = len(state_space)
 
-    E = np.zeros([len(state_seq), len(pos_states)])
+    # Run fwd-bckwd with uniform start probabilities
+    uniform = [1./L  for i in range(L)]
+    fwd_probs = forward(state_space, uniform, observs, transition, emission)
+    bckwd_probs = backward(state_space, observs, transition, emission)
 
-    E[0] = [O[i][state_seq[0]] for i in range(len(pos_states))]
+    # Calculate P(y_i) for each y = (y1, ..., yM)
+    E = np.zeros([L, M])
 
-    for x in range(1, M):
-        for i in range(L):
-            E[x][i] = sum([A[j][i] * O[i][X[x]]*E[j][0] for j in range(len(pos_states))])
+    for i in range(M):
+        dotprod = np.dot(fwd_probs[:, i].T, bckwd_probs[:, i])
+        E[:, i] = fwd_probs[:, i] * bckwd_probs[:, i] / dotprod
     
-    return np.transpose(E)
+    return E
 
 
 # state_space is all possible states x (length L)
@@ -67,21 +74,25 @@ def EStep(pos_states, pos_observations, state_seq, A, O):
 # transition is matrix of transition probabilities between y_j, y_i (size LxL)
 # emission is matrix of prob of observing y from x (size Lxm)
 
-# Performs the forward algorithm, returning a vector of the probabilities of
-# the final states & a list of the normalizing coefficient at each step
+# Performs the forward algorithm, returning matrix of probabilities of
+# internal states
 def forward(state_space, start_probs, observs, transition, emission):
     M = len(observs)
     fwd_probs = np.array(start_probs)
 
     # Do the iterative forward algorithm
     for i in range(M):
-        # Update probabilities iteratively
         fwd_next = np.dot(fwd_probs[:, -1], transition)
         fwd_next = np.dot(fwd_next, np.diag(emission[:, observs[i]]))
 
         fwd_probs = np.append(fwd_probs, fwd_next, 1)
 
     return fwd_probs
+
+# Performs the backward algorithm, returning matrix of probabilities of
+# internal states
+def backward(state_space, observs, transition, emission):
+
 
 
 def Forward(num_states, obs, A, O):
