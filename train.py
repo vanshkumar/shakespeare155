@@ -92,7 +92,18 @@ def forward(state_space, start_probs, observs, transition, emission):
 # Performs the backward algorithm, returning matrix of probabilities of
 # internal states
 def backward(state_space, observs, transition, emission):
-
+    M = len(observs)
+    fwd_probs = np.array(start_probs)
+    bwd_probs = np.array([1] * L)
+    # i is reversed from the forward algorithm
+    for i in reversed(range(M)):
+        bwd_prev = np.dot(bwd_probs[:,0], transition)
+        bwd_prev = np.dot(bwd_prev, np.diag(emission[:, observs[i]]))
+        # append in the opposite order so that the prev column is always in the 
+        # front
+        bwd_probs = np.append(bwd_prev, bwd_probs, 1)
+        
+    return bwd_probs
 
 
 def Forward(num_states, obs, A, O):
