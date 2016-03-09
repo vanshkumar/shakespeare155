@@ -63,7 +63,6 @@ def EStep(state_space, obs_space, observs, transition, emission):
         dotprod = np.dot(fwd_probs[:, i].T, bckwd_probs[:, i])
         #print bckwd_probs[:, i]
         E[:, i] = fwd_probs[:, i] * bckwd_probs[:, i] / dotprod
-    print E
     return E
 
 
@@ -103,20 +102,24 @@ def EM_algorithm(state_space, obs_space, transition, emission, observs, eps, epo
     norm_diff = eps + 1
 
     while norm_diff > eps:
-        transition_new = np.copy(transition)
-        emission_new   = np.copy(emission)
+        count = 0
+        transition_new = np.array([0] * transition.size).reshape(transition.shape)
+        emission_new = np.array([0] * emission.size).reshape(emission.shape)
         for i in range(epoch_size):
             print 'epoch', i
             rand_observs = rand.choice(observs)
-            E = EStep(state_space, obs_space, rand_observs, transition_new, emission_new)
-            transition_new, emission_new = MStep(state_space, obs_space, rand_observs, E)
-            print transition_new, emission_new
+            E = EStep(state_space, obs_space, rand_observs, transition, emission)
+            transition_epoch, emission_epoch = MStep(state_space, obs_space, rand_observs, E)
+            emission_new += emission_epoch / float(epoch_size)  
+            transition_new += transition_epoch / float(epoch_size)
+            print 'transition_new -------\n', transition_new
         norm_diff  = np.linalg.norm(transition - transition_new) + \
                      np.linalg.norm(emission - emission_new)
-        print transition_new, emission_new
+        print 'transition------\n', transition_new
+        print 'emission--------\n', emission_new
         print '----------- \n', norm_diff
-        transition = transition_new
-        emission   = emission_new
+        transition = np.copy(transition_new)
+        emission   = np.copy(emission_new)
 
     return transition, emission
 
@@ -130,6 +133,6 @@ if __name__ == '__main__':
     T /= 100.
     E /= 100.
     final_out = EM_algorithm(np.array(range(num_internal)), \
-                             np.array(list(set(flat_obs))), T, E, EM_in, 10, 2)
+                             np.array(list(set(flat_obs))), T, E, EM_in, 10, 500)
 
 
