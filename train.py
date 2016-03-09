@@ -29,21 +29,42 @@ def MStep(state_space, obs_space, observs, E):
     transition = np.zeros((L, L))
     emission   = np.zeros((L, m))
 
-    # Calculate transition and emission matrix
+    # Transition
+    # for a in range(L):
+    #     # Normalization factor for both matrices
+    #     # row_norms[a] += np.sum(E[a, :])
+
+    #     for b in range(L):
+    #         for i in range(M-1):
+    #             transition[a][b] += E[a, i] * E[b, i+1]
+
+    # # Emission
+    # for a in range(L):
+    #     for b in range(m):
+    #         for i in range(M):
+    #             if observs[i] == b:
+    #                 emission[a][b] += E[a, i]
+
+    # trans2 = np.zeros((L, L))
+    # emiss2 = np.zeros((L, m))
+
+    # Both simultaneously
     for i in range(L):
-        # Normalization factor for both matrices
-        norm = np.sum(E[i, :])
+        # row_norms[i] = np.sum(E[i, :])
 
         for j in range(M-1):
             transition[i, :] += E[i, j] * E[:, j+1].T
-        transition[i, :] /= norm
+        # transition[i, :] /= norm
 
         for j in range(M):
             val = observs[j] # jth emission in sequence
             emission[i, val] += E[i, j]
-        emission[i, :] /= norm
+        # emission[i, :] /= norm
 
-    return transition, emission
+    # print "Transition check: ", np.sum((np.abs(trans2 - transition) > 0.001))
+    # print "Emission check: ", np.sum((np.abs(emiss2 - emission) > 0.001))
+
+    return transition, emission, transition.sum(axis=1), emission.sum(axis=1)
 
 
 def EStep(state_space, obs_space, observs, transition, emission):
@@ -61,7 +82,6 @@ def EStep(state_space, obs_space, observs, transition, emission):
 
     for i in range(M):
         dotprod = np.dot(fwd_probs[:, i].T, bckwd_probs[:, i])
-        #print bckwd_probs[:, i]
         E[:, i] = fwd_probs[:, i] * bckwd_probs[:, i] / dotprod
     return E
 
@@ -99,19 +119,36 @@ def backward(state_space, observs, transition, emission):
 # eps is our stopping condition
 # observs is all of our training examples
 def EM_algorithm(state_space, obs_space, transition, emission, observs, eps, epoch_size):
+    L = len(state_space)
     norm_diff = eps + 1
 
     while norm_diff > eps:
         count = 0
-        transition_new = np.array([0] * transition.size).reshape(transition.shape)
-        emission_new = np.array([0] * emission.size).reshape(emission.shape)
+
+        transition_new = np.zeros(transition.shape)
+        emission_new   = np.zeros(emission.shape)
         for i in range(epoch_size):
             print 'epoch', i
-            rand_observs = rand.choice(observs)
-            E = EStep(state_space, obs_space, rand_observs, transition, emission)
-            transition_epoch, emission_epoch = MStep(state_space, obs_space, rand_observs, E)
-            emission_new += emission_epoch / float(epoch_size)  
-            transition_new += transition_epoch / float(epoch_size)
+
+            trans_norms = np.zeros((L, 1))
+            emiss_norms = np.zeros((L, 1))
+
+            # Make a pass thru the data
+            for observ in observs:
+                E = EStep(state_space, obs_space, observ, transition, emission)
+                # print "Number of negative values in E: ", np.sum(E < 0)
+
+                transition_epoch, emission_epoch, trans_norm, emiss_norm = MStep(state_space, obs_space, observ, E)
+                
+                emission_new += emission_epoch# / float(epoch_size)
+                transition_new += transition_epoch# / float(epoch_size)
+                trans_norms += trans_norm[:, np.newaxis]
+                emiss_norms += emiss_norm[:, np.newaxis]
+
+            # Normalize
+            emission_new /= trans_norms
+            transition_new /= emiss_norms
+                
             print 'transition_new -------\n', transition_new
         norm_diff  = np.linalg.norm(transition - transition_new) + \
                      np.linalg.norm(emission - emission_new)
@@ -128,11 +165,17 @@ if __name__ == '__main__':
     flat_obs = [item for sublist in EM_in for item in sublist] 
     unique_obs = len(set(flat_obs))
     num_internal = 20
-    T = np.random.rand(num_internal ** 2).reshape((num_internal, num_internal)) - .5
-    E = np.random.rand(unique_obs * num_internal).reshape((num_internal, unique_obs)) - .5
-    T /= 100.
-    E /= 100.
+    T = np.random.rand(num_internal, num_internal)
+    E = np.random.rand(num_internal, unique_obs)
+    
+    for i in range(T.shape[1]):
+        T[:, i] /= np.sum(T[:, i])
+
+    for i in range(E.shape[1]):
+        E[:, i] /= np.sum(E[:, i])
+
+    # T = np.array([[:,j] / float(sum([:,j])) for [:,j] in range(T.shape[1])])
     final_out = EM_algorithm(np.array(range(num_internal)), \
-                             np.array(list(set(flat_obs))), T, E, EM_in, 10, 500)
+                             np.array(list(set(flat_obs))), T, E, EM_in, .005, 1)
 
 
