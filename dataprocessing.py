@@ -42,7 +42,7 @@ def createBag():
   '''Converts each word to an id'''
   a = loadShakespeare()
   words = {}
-  dictid = 0
+  dictid = 2
   for sonnet in a:
     for line in sonnet:
       line = re.findall(r"[\w']+", line)
@@ -53,9 +53,8 @@ def createBag():
           dictid += 1
   return words
 
-def convertToBag(line):
+def convertToBag(line, bagdict):
   '''Converts line to bag representation'''
-  bagdict = createBag()
   bagrep = []
   line = re.findall(r"[\w']+", line)
   for word in line:
@@ -63,6 +62,18 @@ def convertToBag(line):
     bagrep.append(bagdict[word])
   return bagrep
 
+def outputStream():
+  a = loadShakespeare()
+  bagdict = createBag()
+  output = []
+  for sonnet in a:
+    for line in sonnet:
+      output.append(convertToBag(line, bagdict))
+      # 0 is a comma, 1 is a period
+      output[-1] += [0]
+    output[-1][-1] = 1
+  output[0] = [1] + output[0]
+  return output
 
 def exampleUsage():
   a = loadShakespeare()
