@@ -19,7 +19,7 @@ def latex_matrix(matrix):
 # start_probs are the start probabiliies (length L)
 # observs is our sequence of observations (length M)
 # transition is matrix of transition probabilities between y_j, y_i (size LxL)
-# emission is matrix of prob of observing y from x (size Lxm)
+# emission is matrix of prob of observing x from y (size mxL)
 # E is our matrix of P(y_i)'s. E[i, j] = P(y_j = i), size LxM
 
 def MStep(state_space, obs_space, observs, E):
@@ -27,44 +27,21 @@ def MStep(state_space, obs_space, observs, E):
     m = len(obs_space)
     M = len(observs)
     transition = np.zeros((L, L))
-    emission   = np.zeros((L, m))
+    emission   = np.zeros((m, L))
 
-    # Transition
-    # for a in range(L):
-    #     # Normalization factor for both matrices
-    #     # row_norms[a] += np.sum(E[a, :])
 
-    #     for b in range(L):
-    #         for i in range(M-1):
-    #             transition[a][b] += E[a, i] * E[b, i+1]
-
-    # # Emission
-    # for a in range(L):
-    #     for b in range(m):
-    #         for i in range(M):
-    #             if observs[i] == b:
-    #                 emission[a][b] += E[a, i]
-
-    # trans2 = np.zeros((L, L))
-    # emiss2 = np.zeros((L, m))
+    # for 
 
     # Both simultaneously
     for i in range(L):
-        # row_norms[i] = np.sum(E[i, :])
-
         for j in range(M-1):
             transition[i, :] += E[i, j] * E[:, j+1].T
-        # transition[i, :] /= norm
 
         for j in range(M):
             val = observs[j] # jth emission in sequence
-            emission[i, val] += E[i, j]
-        # emission[i, :] /= norm
+            emission[val, i] += E[i, j]
 
-    # print "Transition check: ", np.sum((np.abs(trans2 - transition) > 0.001))
-    # print "Emission check: ", np.sum((np.abs(emiss2 - emission) > 0.001))
-
-    return transition, emission, transition.sum(axis=1), emission.sum(axis=1)
+    return transition, emission, transition.sum(axis=0), emission.sum(axis=0)
 
 
 def EStep(state_space, obs_space, observs, transition, emission):
@@ -93,7 +70,7 @@ def forward(state_space, start_probs, observs, transition, emission):
     fwd_probs = np.array(start_probs).reshape((1, len(start_probs))).T
     # Do the iterative forward algorithm
     for i in range(M):
-        fwd_next = np.dot(transition, np.diag(emission[:, observs[i]]))
+        fwd_next = np.dot(transition, np.diag(emission[observs[i], :]))
         fwd_next = np.dot(fwd_next, fwd_probs[:, -1]).reshape((len(start_probs), 1))
         fwd_probs = np.append(fwd_probs, fwd_next/float(sum(fwd_next)), 1)
     #print fwd_probs
@@ -108,7 +85,7 @@ def backward(state_space, observs, transition, emission):
 
     # i is reversed from the forward algorithm
     for i in reversed(range(M)):
-        bwd_prev = np.dot(transition, np.diag(emission[:, observs[i]]))
+        bwd_prev = np.dot(transition, np.diag(emission[observs[i], :]))
         bwd_prev = np.dot(bwd_prev, bwd_probs[:,0]).reshape((L, 1))
 
         # append in the opposite order so prev column is always in front
@@ -120,36 +97,36 @@ def backward(state_space, observs, transition, emission):
 # observs is all of our training examples
 def EM_algorithm(state_space, obs_space, transition, emission, observs, eps, epoch_size):
     L = len(state_space)
+    M = len(obs_space)
     norm_diff = eps + 1
 
     while norm_diff > eps:
-        count = 0
+    # for GETRIDOFTHISLATER in range(2): 
 
         transition_new = np.zeros(transition.shape)
         emission_new   = np.zeros(emission.shape)
         for i in range(epoch_size):
             print 'epoch', i
 
-            trans_norms = np.zeros((L, 1))
-            emiss_norms = np.zeros((L, 1))
+            trans_norms = np.zeros(L)
+            emiss_norms = np.zeros(L)
 
             # Make a pass thru the data
             for observ in observs:
                 E = EStep(state_space, obs_space, observ, transition, emission)
-                # print "Number of negative values in E: ", np.sum(E < 0)
 
                 transition_epoch, emission_epoch, trans_norm, emiss_norm = MStep(state_space, obs_space, observ, E)
-                
                 emission_new += emission_epoch# / float(epoch_size)
                 transition_new += transition_epoch# / float(epoch_size)
-                trans_norms += trans_norm[:, np.newaxis]
-                emiss_norms += emiss_norm[:, np.newaxis]
+                
+                trans_norms = np.add(trans_norms, trans_norm)
+                emiss_norms = np.add(emiss_norms, emiss_norm)
 
             # Normalize
-            emission_new /= trans_norms
-            transition_new /= emiss_norms
+            emission_new /= emiss_norms
+            transition_new /= trans_norms
                 
-            print 'transition_new -------\n', transition_new
+            # print 'transition_new -------\n', transition_new
         norm_diff  = np.linalg.norm(transition - transition_new) + \
                      np.linalg.norm(emission - emission_new)
         print 'transition------\n', transition_new
@@ -164,9 +141,9 @@ if __name__ == '__main__':
     EM_in = outputStream()
     flat_obs = [item for sublist in EM_in for item in sublist] 
     unique_obs = len(set(flat_obs))
-    num_internal = 20
+    num_internal = 5
     T = np.random.rand(num_internal, num_internal)
-    E = np.random.rand(num_internal, unique_obs)
+    E = np.random.rand(unique_obs, num_internal)
     
     for i in range(T.shape[1]):
         T[:, i] /= np.sum(T[:, i])
