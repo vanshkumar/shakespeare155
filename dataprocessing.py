@@ -51,6 +51,8 @@ def createBag():
         if word not in words:
           words[word] = dictid
           dictid += 1
+  words['.'] = 1
+  words[','] = 0
   return words
 
 def convertToBag(line, bagdict):
