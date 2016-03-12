@@ -29,11 +29,9 @@ def MStep(state_space, obs_space, observs, E, F):
     transition = np.zeros((L, L))
     emission   = np.zeros((m, L))
 
-    for b in range(L):
-        for a in range(L):
-            transition[b, a] = sum([F[i, b, a] for i in range(0, M)])
+    transition = F.sum(axis=0)
 
-    # Both simultaneously
+    # Emission
     for i in range(L):
         for j in range(M):
             val = observs[j] # jth emission in sequence
@@ -55,17 +53,15 @@ def EStep(state_space, obs_space, observs, transition, emission):
     # Calculate P(y_i) for each y = (y1, ..., yM)
     E = np.zeros([L, M])
 
-    for i in range(M):
-        dotprod = np.dot(fwd_probs[:, i].T, bckwd_probs[:, i])
-        E[:, i] = fwd_probs[:, i] * bckwd_probs[:, i] / dotprod
+    E = np.multiply(fwd_probs[:, :-1], bckwd_probs[:, :-1])
+    E /= E.sum(axis=0)
 
     # Calculate P(y_i-1=a, y_i = b) for each y = (y1, ..., yM)
     F = np.zeros([M, L, L])
 
-    for i in range(0,M):
+    for i in range(M):
         for b in range(L):
-            for a in range(L):
-                F[i][b][a] = fwd_probs[a, i] * transition[b, a] * emission[observs[i], b] * bckwd_probs[b, i+1]
+            F[i][b] = fwd_probs[:, i] * transition[b, :].T * emission[observs[i], b] * bckwd_probs[b, i+1]
         F[i] /= F[i].sum()
     return E, F
 
@@ -123,8 +119,7 @@ def EM_algorithm(state_space, obs_space, transition, emission, observs, eps, epo
                 E, F = EStep(state_space, obs_space, observ, transition, emission)
 
                 transition_epoch, emission_epoch = MStep(state_space, obs_space, observ, E, F)
-                # if np.max(transition_epoch) > 1:
-                #     print transition_epoch
+
                 emission_new += emission_epoch
                 transition_new += transition_epoch
                 
@@ -135,11 +130,11 @@ def EM_algorithm(state_space, obs_space, transition, emission, observs, eps, epo
                 
         norm_diff  = np.linalg.norm(transition - transition_new) + \
                      np.linalg.norm(emission - emission_new)
-        print 'transition------\n', transition_new
-        print transition_new.sum(axis=0), transition_new.sum()
-        print 'emission--------\n', emission_new
-        print emission_new.sum(axis=0), emission_new.sum()
-        print '----------- \n', norm_diff
+        # print 'transition------\n', transition_new
+        # print transition_new.sum(axis=0), transition_new.sum()
+        # print 'emission--------\n', emission_new
+        # print emission_new.sum(axis=0), emission_new.sum()
+        # print '----------- \n', norm_diff
         transition = np.copy(transition_new)
         emission   = np.copy(emission_new)
 
@@ -186,7 +181,7 @@ if __name__ == '__main__':
     EM_in, worddict = outputStream()
     flat_obs = [item for sublist in EM_in for item in sublist]
     unique_obs = len(set(flat_obs))
-    num_internal = 
+    num_internal = 50
     Trans = np.random.rand(num_internal, num_internal)
     Emiss = np.random.rand(unique_obs, num_internal)
     
@@ -196,19 +191,22 @@ if __name__ == '__main__':
     final_t, final_e = EM_algorithm(np.array(range(num_internal)), \
                              np.array(list(set(flat_obs))), Trans, Emiss, EM_in, .005, 1)
 
-    prediction = predictSequence(final_t, final_e, 100)
+    for j in range(10):
+        prediction = predictSequence(final_t, final_e, 100)
 
-    # print prediction
+        # print prediction
 
 
-    iddict = {y:x for x,y in worddict.iteritems()}
- 
-    poem = ""
+        iddict = {y:x for x,y in worddict.iteritems()}
+        iddict[0] = ','
+        iddict[1] = '.'
+     
+        poem = ""
 
-    for i in prediction:
-        poem += iddict[int(i + 2)] + " "
+        for i in prediction:
+            poem += iddict[int(i)] + " "
 
-    print poem
+        print poem
 
 
 
