@@ -67,7 +67,6 @@ def EStep(state_space, obs_space, observs, transition, emission):
             for a in range(L):
                 F[i][b][a] = fwd_probs[a, i] * transition[b,a] * emission[observs[i+1], b] * bckwd_probs[b, i+1]
         F[i] /= F[i].sum()
-        # print F[i]
     return E, F
 
 
@@ -78,7 +77,7 @@ def forward(state_space, start_probs, observs, transition, emission):
     fwd_probs = np.array(start_probs).reshape((1, len(start_probs))).T
     # Do the iterative forward algorithm
     for i in range(M):
-        fwd_next = np.dot(transition, np.diag(emission[observs[i], :]))
+        fwd_next = np.dot(transition.T, np.diag(emission[observs[i], :]))
         fwd_next = np.dot(fwd_next, fwd_probs[:, -1]).reshape((len(start_probs), 1))
         fwd_probs = np.append(fwd_probs, fwd_next/float(sum(fwd_next)), 1)
     #print fwd_probs
@@ -93,7 +92,7 @@ def backward(state_space, observs, transition, emission):
 
     # i is reversed from the forward algorithm
     for i in reversed(range(M)):
-        bwd_prev = np.dot(transition, np.diag(emission[observs[i], :]))
+        bwd_prev = np.dot(transition.T, np.diag(emission[observs[i], :]))
         bwd_prev = np.dot(bwd_prev, bwd_probs[:,0]).reshape((L, 1))
 
         # append in the opposite order so prev column is always in front
