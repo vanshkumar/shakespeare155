@@ -1,10 +1,9 @@
 import os
 import numpy
-# import nltk
-# from nltk.corpus import cmudict
-import re
+#import nltk
+#from nltk.corpus import cmudict
 
-# d = cmudict.dict()
+#d = cmudict.dict()
 def nsyl(word):
   '''finds the number of syllables in a word'''
   return [len(list(y for y in x if y[-1].isdigit())) for x in d[word.lower()]] 
@@ -18,6 +17,8 @@ def loadShakespeare():
   sonnet = []
   for line in lines:
     line = line.strip()
+    for punct in [',', '.', '?', '!', ':', ';']:
+      line = line.replace(punct, ' ' + punct)    
     if line.isdigit():
       sonnets.append(sonnet)
       sonnet = []
@@ -30,10 +31,6 @@ def loadShakespeare():
   return sonnets
 
 def processWord(word):
-  word = word.strip(',')
-  word = word.strip('.')
-  word = word.strip('!')
-  word = word.strip('?')
   word = word.replace("'", "")
   word = word.lower()  
   return word
@@ -42,23 +39,26 @@ def createBag():
   '''Converts each word to an id'''
   a = loadShakespeare()
   words = {}
-  dictid = 2
+  dictid = 0
   for sonnet in a:
     for line in sonnet:
-      line = re.findall(r"[\w']+", line)
+      line = line.split(' ')
       for word in line:
         word = processWord(word)
         if word not in words:
           words[word] = dictid
           dictid += 1
-  words['.'] = 1
-  words[','] = 0
   return words
+
+def partsofSpeech(bagdict):
+  speechdict = {}
+  for word in bagdict.keys():
+    speechdict[word] = 000000
 
 def convertToBag(line, bagdict):
   '''Converts line to bag representation'''
   bagrep = []
-  line = re.findall(r"[\w']+", line)
+  line = line.split(' ')
   for word in line:
     word = processWord(word)
     bagrep.append(bagdict[word])
@@ -71,12 +71,4 @@ def outputStream():
   for sonnet in a:
     for line in sonnet:
       output.append(convertToBag(line, bagdict))
-      # 0 is a comma, 1 is a period
-      output[-1] += [0]
-    output[-1][-1] = 1
   return output, bagdict
-
-def exampleUsage():
-  a = loadShakespeare()
-  print a[100][0]
-  print convertToBag(a[100][0])
