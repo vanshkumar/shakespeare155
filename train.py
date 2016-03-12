@@ -143,6 +143,42 @@ def EM_algorithm(state_space, obs_space, transition, emission, observs, eps, epo
 
     return transition, emission
 
+
+
+def predictSequence(transition, emission, length):
+    sequence = np.zeros(length)
+
+    Emiss_total = emission.sum(axis=0)
+    Trans_total = transition.sum(axis=0)
+    rando = np.random.uniform(0, Emiss_total.sum())
+    cumulative, i = emission[0][0], 0
+    while(rando > cumulative):
+        i += 1
+        cumulative += emission[i/len(emission[0])][i % len(emission[0])]
+    print len(emission[0])
+    sequence[0], state = i/len(emission[0]), i % len(emission[0])
+
+    for j in range(1, length):
+        rando = np.random.uniform(0, Trans_total[state])
+        cumulative, i = transition[0][state], 0
+        while(rando > cumulative):
+            i += 1
+            cumulative += transition[i][state]
+
+        state = i
+
+        rando = np.random.uniform(0, Emiss_total[state])
+        cumulative, i = 0, 0
+        while(rando > cumulative):
+            i += 1
+            cumulative += emission[i][state]
+
+        sequence[j] = i 
+
+
+    return sequence
+
+
 if __name__ == '__main__':
     EM_in = outputStream()
     flat_obs = [item for sublist in EM_in for item in sublist] 
@@ -156,6 +192,25 @@ if __name__ == '__main__':
     for i in range(Emiss.shape[1]):
         Emiss[:, i] /= np.sum(Emiss[:, i])
 
-    final_out = EM_algorithm(np.array(range(num_internal)), \
+    final_t, final_e = EM_algorithm(np.array(range(num_internal)), \
                              np.array(list(set(flat_obs))), Trans, Emiss, EM_in, .005, 1)
+
+    prediction = predictSequence(final_t, final_e, 10)
+
+    print prediction
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
