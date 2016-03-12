@@ -109,32 +109,26 @@ def EM_algorithm(state_space, obs_space, transition, emission, observs, eps, epo
 
         transition_new = np.zeros(transition.shape)
         emission_new   = np.zeros(emission.shape)
-        for i in range(epoch_size):
-            print 'epoch', i
 
-            norm = np.zeros(L)
+        norm = np.zeros(L)
 
-            # Make a pass thru the data
-            for observ in observs:
-                E, F = EStep(state_space, obs_space, observ, transition, emission)
+        # Make a pass thru the data
+        for observ in observs:
+            E, F = EStep(state_space, obs_space, observ, transition, emission)
 
-                transition_epoch, emission_epoch = MStep(state_space, obs_space, observ, E, F)
+            transition_epoch, emission_epoch = MStep(state_space, obs_space, observ, E, F)
 
-                emission_new += emission_epoch
-                transition_new += transition_epoch
-                
-                norm += E.sum(axis=1)
-            # Normalize
-            emission_new /= norm
-            transition_new /= norm
+            emission_new += emission_epoch
+            transition_new += transition_epoch
+            
+            norm += E.sum(axis=1)
+        # Normalize
+        emission_new /= norm
+        transition_new /= norm
                 
         norm_diff  = np.linalg.norm(transition - transition_new) + \
                      np.linalg.norm(emission - emission_new)
-        # print 'transition------\n', transition_new
-        # print transition_new.sum(axis=0), transition_new.sum()
-        # print 'emission--------\n', emission_new
-        # print emission_new.sum(axis=0), emission_new.sum()
-        # print '----------- \n', norm_diff
+        print "normdiff: ", norm_diff
         transition = np.copy(transition_new)
         emission   = np.copy(emission_new)
 
