@@ -72,7 +72,7 @@ def outputStream():
       # 0 is a comma, 1 is a period
       output[-1] += [0]
     output[-1][-1] = 1
-  return output
+  return output, bagdict
 
 def exampleUsage():
   a = loadShakespeare()

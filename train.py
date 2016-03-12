@@ -133,9 +133,9 @@ def EM_algorithm(state_space, obs_space, transition, emission, observs, eps, epo
                 
         norm_diff  = np.linalg.norm(transition - transition_new) + \
                      np.linalg.norm(emission - emission_new)
-        print 'transition------\n', transition_new
-        print transition_new.sum(axis=0), transition_new.sum()
-        print 'emission--------\n', emission_new
+        # print 'transition------\n', transition_new
+        # print transition_new.sum(axis=0), transition_new.sum()
+        # print 'emission--------\n', emission_new
         # print emission_new.sum(axis=0), emission_new.sum()
         print '----------- \n', norm_diff
         transition = np.copy(transition_new)
@@ -150,6 +150,7 @@ def predictSequence(transition, emission, length):
 
     Emiss_total = emission.sum(axis=0)
     Trans_total = transition.sum(axis=0)
+    print Trans_total
     rando = np.random.uniform(0, Emiss_total.sum())
     cumulative, i = emission[0][0], 0
     while(rando > cumulative):
@@ -168,7 +169,7 @@ def predictSequence(transition, emission, length):
         state = i
 
         rando = np.random.uniform(0, Emiss_total[state])
-        cumulative, i = 0, 0
+        cumulative, i = emission[0][state], 0
         while(rando > cumulative):
             i += 1
             cumulative += emission[i][state]
@@ -180,10 +181,10 @@ def predictSequence(transition, emission, length):
 
 
 if __name__ == '__main__':
-    EM_in = outputStream()
+    EM_in, worddict = outputStream()
     flat_obs = [item for sublist in EM_in for item in sublist] 
     unique_obs = len(set(flat_obs))
-    num_internal = 5
+    num_internal = 50
     Trans = np.random.rand(num_internal, num_internal)
     Emiss = np.random.rand(unique_obs, num_internal)
     
@@ -195,21 +196,19 @@ if __name__ == '__main__':
     final_t, final_e = EM_algorithm(np.array(range(num_internal)), \
                              np.array(list(set(flat_obs))), Trans, Emiss, EM_in, .005, 1)
 
-    prediction = predictSequence(final_t, final_e, 10)
+    prediction = predictSequence(final_t, final_e, 100)
 
-    print prediction
-
-
+    # print prediction
 
 
+    iddict = {y:x for x,y in worddict.iteritems()}
+ 
+    poem = ""
 
+    for i in prediction:
+        poem += iddict[int(i + 2)] + " "
 
-
-
-
-
-
-
+    print poem
 
 
 
