@@ -22,7 +22,7 @@ def latex_matrix(matrix):
 # emission is matrix of prob of observing x from y (size mxL)
 # E is our matrix of P(y_i)'s. E[i, j] = P(y_j = i), size LxM
 
-def MStep(state_space, obs_space, observs, E):
+def MStep(state_space, obs_space, observs, E, F):
     L = len(state_space)
     m = len(obs_space)
     M = len(observs)
@@ -30,18 +30,20 @@ def MStep(state_space, obs_space, observs, E):
     emission   = np.zeros((m, L))
 
 
-    # for 
+    for b in range(L):
+        for a in range(L):
+            transition[b, a] = sum([F[i, b, a] for i in range(M)])
 
     # Both simultaneously
     for i in range(L):
-        for j in range(M-1):
-            transition[i, :] += E[i, j] * E[:, j+1].T
+        # for j in range(M-1):
+        #     transition[i, :] += E[i, j] * E[:, j+1].T
 
         for j in range(M):
             val = observs[j] # jth emission in sequence
             emission[val, i] += E[i, j]
 
-    return transition, emission, transition.sum(axis=0), emission.sum(axis=0)
+    return transition, emission #, transition.sum(axis=0), emission.sum(axis=0)
 
 
 def EStep(state_space, obs_space, observs, transition, emission):
@@ -60,7 +62,18 @@ def EStep(state_space, obs_space, observs, transition, emission):
     for i in range(M):
         dotprod = np.dot(fwd_probs[:, i].T, bckwd_probs[:, i])
         E[:, i] = fwd_probs[:, i] * bckwd_probs[:, i] / dotprod
-    return E
+
+
+    # Calculate P(y_i-1=a, y_i = b) for each y = (y1, ..., yM)
+    F = np.zeros([M, L, L])
+
+    for i in range(M):
+        denom = sum([fwd_probs[a, i-1] * transition[b,a] * emission[observs[i], b] * bckwd_probs[b, i] for b in range(L) for a in range(L)])
+        for b in range(L):
+            for a in range(L):
+                F[i][b][a] = fwd_probs[a, i-1] * transition[b,a] * emission[observs[i], b] * bckwd_probs[b, i]
+
+    return E, F
 
 
 # Performs the forward algorithm, returning matrix of probabilities
@@ -97,34 +110,31 @@ def backward(state_space, observs, transition, emission):
 # observs is all of our training examples
 def EM_algorithm(state_space, obs_space, transition, emission, observs, eps, epoch_size):
     L = len(state_space)
-    M = len(obs_space)
+    M = len(observs)
     norm_diff = eps + 1
 
     while norm_diff > eps:
-    # for GETRIDOFTHISLATER in range(2): 
 
         transition_new = np.zeros(transition.shape)
         emission_new   = np.zeros(emission.shape)
         for i in range(epoch_size):
             print 'epoch', i
 
-            trans_norms = np.zeros(L)
-            emiss_norms = np.zeros(L)
+            norm = np.zeros(L)
 
             # Make a pass thru the data
             for observ in observs:
-                E = EStep(state_space, obs_space, observ, transition, emission)
+                E, F = EStep(state_space, obs_space, observ, transition, emission)
 
-                transition_epoch, emission_epoch, trans_norm, emiss_norm = MStep(state_space, obs_space, observ, E)
+                # transition_epoch, emission_epoch, trans_norm, emiss_norm = MStep(state_space, obs_space, observ, E, F)
+                transition_epoch, emission_epoch = MStep(state_space, obs_space, observ, E, F)
                 emission_new += emission_epoch# / float(epoch_size)
                 transition_new += transition_epoch# / float(epoch_size)
                 
-                trans_norms = np.add(trans_norms, trans_norm)
-                emiss_norms = np.add(emiss_norms, emiss_norm)
-
+                norm += E.sum(axis=1)
             # Normalize
-            emission_new /= emiss_norms
-            transition_new /= trans_norms
+            emission_new /= norm
+            transition_new /= norm
                 
             # print 'transition_new -------\n', transition_new
         norm_diff  = np.linalg.norm(transition - transition_new) + \
