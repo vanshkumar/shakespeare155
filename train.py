@@ -29,10 +29,9 @@ def MStep(state_space, obs_space, observs, E, F):
     transition = np.zeros((L, L))
     emission   = np.zeros((m, L))
 
-
     for b in range(L):
         for a in range(L):
-            transition[b, a] = sum([F[i, b, a] for i in range(M)])
+            transition[b, a] = sum([F[i, b, a] for i in range(0,M)])
 
     # Both simultaneously
     for i in range(L):
@@ -63,15 +62,14 @@ def EStep(state_space, obs_space, observs, transition, emission):
         dotprod = np.dot(fwd_probs[:, i].T, bckwd_probs[:, i])
         E[:, i] = fwd_probs[:, i] * bckwd_probs[:, i] / dotprod
 
-
     # Calculate P(y_i-1=a, y_i = b) for each y = (y1, ..., yM)
     F = np.zeros([M, L, L])
 
-    for i in range(M):
+    for i in range(0,M):
         denom = sum([fwd_probs[a, i-1] * transition[b,a] * emission[observs[i], b] * bckwd_probs[b, i] for b in range(L) for a in range(L)])
         for b in range(L):
             for a in range(L):
-                F[i][b][a] = fwd_probs[a, i-1] * transition[b,a] * emission[observs[i], b] * bckwd_probs[b, i]
+                F[i][b][a] = fwd_probs[a, i-1] * transition[b,a] * emission[observs[i], b] * bckwd_probs[b, i] / denom
 
     return E, F
 
@@ -128,8 +126,8 @@ def EM_algorithm(state_space, obs_space, transition, emission, observs, eps, epo
 
                 # transition_epoch, emission_epoch, trans_norm, emiss_norm = MStep(state_space, obs_space, observ, E, F)
                 transition_epoch, emission_epoch = MStep(state_space, obs_space, observ, E, F)
-                emission_new += emission_epoch# / float(epoch_size)
-                transition_new += transition_epoch# / float(epoch_size)
+                emission_new += emission_epoch
+                transition_new += transition_epoch
                 
                 norm += E.sum(axis=1)
             # Normalize
@@ -140,7 +138,9 @@ def EM_algorithm(state_space, obs_space, transition, emission, observs, eps, epo
         norm_diff  = np.linalg.norm(transition - transition_new) + \
                      np.linalg.norm(emission - emission_new)
         print 'transition------\n', transition_new
+        print transition_new.sum(axis=0), transition_new.sum()
         print 'emission--------\n', emission_new
+        print emission_new.sum(axis=0), emission_new.sum()
         print '----------- \n', norm_diff
         transition = np.copy(transition_new)
         emission   = np.copy(emission_new)
@@ -157,12 +157,9 @@ if __name__ == '__main__':
     
     for i in range(T.shape[1]):
         T[:, i] /= np.sum(T[:, i])
-
     for i in range(E.shape[1]):
         E[:, i] /= np.sum(E[:, i])
 
-    # T = np.array([[:,j] / float(sum([:,j])) for [:,j] in range(T.shape[1])])
     final_out = EM_algorithm(np.array(range(num_internal)), \
                              np.array(list(set(flat_obs))), T, E, EM_in, .005, 1)
-
 
