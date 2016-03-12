@@ -147,13 +147,11 @@ def predictSequence(transition, emission, length):
 
     Emiss_total = emission.sum(axis=0)
     Trans_total = transition.sum(axis=0)
-    print Trans_total
     rando = np.random.uniform(0, Emiss_total.sum())
     cumulative, i = emission[0][0], 0
     while(rando > cumulative):
         i += 1
         cumulative += emission[i/len(emission[0])][i % len(emission[0])]
-    print len(emission[0])
     sequence[0], state = i/len(emission[0]), i % len(emission[0])
 
     for j in range(1, length):
@@ -177,11 +175,14 @@ def predictSequence(transition, emission, length):
     return sequence
 
 
-if __name__ == '__main__':
+def computeMatrices(num_interal):
     EM_in, worddict = outputStream()
+    iddict = {y:x for x,y in worddict.iteritems()}
+    iddict[0] = ','
+    iddict[1] = '.'
+
     flat_obs = [item for sublist in EM_in for item in sublist]
     unique_obs = len(set(flat_obs))
-    num_internal = 50
     Trans = np.random.rand(num_internal, num_internal)
     Emiss = np.random.rand(unique_obs, num_internal)
     
@@ -191,22 +192,54 @@ if __name__ == '__main__':
     final_t, final_e = EM_algorithm(np.array(range(num_internal)), \
                              np.array(list(set(flat_obs))), Trans, Emiss, EM_in, .005, 1)
 
-    for j in range(10):
-        prediction = predictSequence(final_t, final_e, 100)
 
-        # print prediction
+    tFile = open(os.getcwd() + "/data/trans" + str(num_internal) + ".npy", "w")
+    eFile = open(os.getcwd() + "/data/emiss" + str(num_internal) + ".npy", "w")
+    dictFile = open(os.getcwd() + "/data/iddict.npy", "w+")
+
+    np.save(tFile, final_t)
+    np.save(eFile, final_e)
+    np.save(dictFile, iddict)
+
+    tFile.close()
+    eFile.close()
+    dictFile.close()
 
 
-        iddict = {y:x for x,y in worddict.iteritems()}
-        iddict[0] = ','
-        iddict[1] = '.'
-     
-        poem = ""
 
-        for i in prediction:
-            poem += iddict[int(i)] + " "
 
-        print poem
+def philosophize(iddict, trans, emiss, length):
+    prediction = predictSequence(trans, emiss, length)
+    poem = ""
+    for i in prediction:
+        poem += iddict[int(i)] + " "
+    return poem
+
+
+if __name__ == '__main__':
+    num_internal = 10
+    length = 100
+
+    # computeMatrices(num_internal)
+
+    iddict = np.load(os.getcwd() + "/data/iddict.npy").item()
+    T = np.load(os.getcwd() + "/data/trans" + str(num_internal) + ".npy")
+    E = np.load(os.getcwd() + "/data/emiss" + str(num_internal) + ".npy")
+
+
+    print philosophize(iddict, T, E, length)
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
