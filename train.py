@@ -23,26 +23,23 @@ def latex_matrix(matrix):
 # E is our matrix of P(y_i)'s. E[i, j] = P(y_j = i), size LxM
 
 def MStep(state_space, obs_space, observs, E, F):
+    M = len(observs)
     L = len(state_space)
     m = len(obs_space)
-    M = len(observs)
     transition = np.zeros((L, L))
     emission   = np.zeros((m, L))
 
     for b in range(L):
         for a in range(L):
-            transition[b, a] = sum([F[i, b, a] for i in range(0,M)])
+            transition[b, a] = sum([F[i, b, a] for i in range(0, M-1)])
 
     # Both simultaneously
     for i in range(L):
-        # for j in range(M-1):
-        #     transition[i, :] += E[i, j] * E[:, j+1].T
-
         for j in range(M):
             val = observs[j] # jth emission in sequence
             emission[val, i] += E[i, j]
 
-    return transition, emission #, transition.sum(axis=0), emission.sum(axis=0)
+    return transition, emission
 
 
 def EStep(state_space, obs_space, observs, transition, emission):
@@ -65,12 +62,12 @@ def EStep(state_space, obs_space, observs, transition, emission):
     # Calculate P(y_i-1=a, y_i = b) for each y = (y1, ..., yM)
     F = np.zeros([M, L, L])
 
-    for i in range(0,M):
-        denom = sum([fwd_probs[a, i-1] * transition[b,a] * emission[observs[i], b] * bckwd_probs[b, i] for b in range(L) for a in range(L)])
+    for i in range(0,M-1):
         for b in range(L):
             for a in range(L):
-                F[i][b][a] = fwd_probs[a, i-1] * transition[b,a] * emission[observs[i], b] * bckwd_probs[b, i] / denom
-
+                F[i][b][a] = fwd_probs[a, i] * transition[b,a] * emission[observs[i+1], b] * bckwd_probs[b, i+1]
+        F[i] /= F[i].sum()
+        # print F[i]
     return E, F
 
 
@@ -124,8 +121,9 @@ def EM_algorithm(state_space, obs_space, transition, emission, observs, eps, epo
             for observ in observs:
                 E, F = EStep(state_space, obs_space, observ, transition, emission)
 
-                # transition_epoch, emission_epoch, trans_norm, emiss_norm = MStep(state_space, obs_space, observ, E, F)
                 transition_epoch, emission_epoch = MStep(state_space, obs_space, observ, E, F)
+                # if np.max(transition_epoch) > 1.5:
+                #     print transition_epoch
                 emission_new += emission_epoch
                 transition_new += transition_epoch
                 
@@ -134,13 +132,12 @@ def EM_algorithm(state_space, obs_space, transition, emission, observs, eps, epo
             emission_new /= norm
             transition_new /= norm
                 
-            # print 'transition_new -------\n', transition_new
         norm_diff  = np.linalg.norm(transition - transition_new) + \
                      np.linalg.norm(emission - emission_new)
         print 'transition------\n', transition_new
         print transition_new.sum(axis=0), transition_new.sum()
         print 'emission--------\n', emission_new
-        print emission_new.sum(axis=0), emission_new.sum()
+        # print emission_new.sum(axis=0), emission_new.sum()
         print '----------- \n', norm_diff
         transition = np.copy(transition_new)
         emission   = np.copy(emission_new)
@@ -152,14 +149,14 @@ if __name__ == '__main__':
     flat_obs = [item for sublist in EM_in for item in sublist] 
     unique_obs = len(set(flat_obs))
     num_internal = 5
-    T = np.random.rand(num_internal, num_internal)
-    E = np.random.rand(unique_obs, num_internal)
+    Trans = np.random.rand(num_internal, num_internal)
+    Emiss = np.random.rand(unique_obs, num_internal)
     
-    for i in range(T.shape[1]):
-        T[:, i] /= np.sum(T[:, i])
-    for i in range(E.shape[1]):
-        E[:, i] /= np.sum(E[:, i])
+    for i in range(Trans.shape[1]):
+        Trans[:, i] /= np.sum(Trans[:, i])
+    for i in range(Emiss.shape[1]):
+        Emiss[:, i] /= np.sum(Emiss[:, i])
 
     final_out = EM_algorithm(np.array(range(num_internal)), \
-                             np.array(list(set(flat_obs))), T, E, EM_in, .005, 1)
+                             np.array(list(set(flat_obs))), Trans, Emiss, EM_in, .005, 1)
 
