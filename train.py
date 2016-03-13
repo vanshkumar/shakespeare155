@@ -183,6 +183,7 @@ def computeMatrices(num_interal):
 
     flat_obs = [item for sublist in EM_in for item in sublist]
     unique_obs = len(set(flat_obs))
+
     Trans = np.random.rand(num_internal, num_internal)
     Emiss = np.random.rand(unique_obs, num_internal)
     
@@ -190,7 +191,7 @@ def computeMatrices(num_interal):
     Emiss /= Emiss.sum(axis=0)
 
     final_t, final_e = EM_algorithm(np.array(range(num_internal)), \
-                             np.array(list(set(flat_obs))), Trans, Emiss, EM_in, .005, 1)
+                             np.array(list(set(flat_obs))), Trans, Emiss, EM_in, .000001, 1)
 
 
     tFile = open(os.getcwd() + "/data/trans" + str(num_internal) + ".npy", "w")
@@ -227,10 +228,10 @@ def philosophize(iddict, trans, emiss, length):
 
 
 if __name__ == '__main__':
-    num_internal = 7
-    length = 100
+    num_internal = 100
+    length = 10
 
-    computeMatrices(num_internal)
+    # computeMatrices(num_internal)
 
     iddict = np.load(os.getcwd() + "/data/iddict.npy").item()
     T = np.load(os.getcwd() + "/data/trans" + str(num_internal) + ".npy")
@@ -238,7 +239,7 @@ if __name__ == '__main__':
 
 
     print philosophize(iddict, T, E, length)
-    out = visualize()
+    # out = visualize()
 
 
 
