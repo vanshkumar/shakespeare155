@@ -1,9 +1,9 @@
 import os
 import numpy
-# import nltk
-# from nltk.corpus import cmudict
+import nltk
+from nltk.corpus import cmudict
 
-# d = cmudict.dict()
+d = cmudict.dict()
 def nsyl(word):
   '''finds the number of syllables in a word'''
   try:

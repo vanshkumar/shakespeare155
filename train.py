@@ -236,18 +236,16 @@ def generate_sonnet(iddict, trans, emiss, samples):
 
 def haiku_split(poem):
     words = poem.split()
-
     lines = []
 
     syl_count = 0
     tmp = []
     i = 0
     while True:
-        if syl_count + nsyl(word[i]) > 5:
-            i += 1
+        if syl_count + nsyl(words[i]) > 5:
             break
-        tmp.append(word[i])
-        syl_count += nsyl(word)
+        tmp.append(words[i])
+        syl_count += nsyl(words[i])
         i += 1
 
     if syl_count != 5:
@@ -258,21 +256,16 @@ def haiku_split(poem):
     syl_count = 0
     tmp = []
     while True:
-        if syl_count + nsyl(word[i]) > 7:
-            i += 1
+        if syl_count + nsyl(words[i]) > 7:
             break
-        tmp.append(word[i])
-        syl_count += nsyl(word)
+        tmp.append(words[i])
+        syl_count += nsyl(words[i])
         i += 1
 
     if syl_count != 7:
         return False, lines
 
     lines.append(tmp)
-
-    if count_syllables(' '.join(words[i:])) != 5:
-        return False, lines
-
     lines.append(words[i:])
 
     return True, lines
@@ -280,14 +273,14 @@ def haiku_split(poem):
 
 def generate_haiku(iddict, trans, emiss):
     # 5 7 5 syllable scheme, 17 total
-    length = np.random.randint(11, 16)
-    poem, states = philosophize_syls(iddict, trans, emiss, length, 17)
     while True:
-        length = np.random.randint(11, 16)
+        length = np.random.randint(12, 15)
         poem, states = philosophize_syls(iddict, trans, emiss, length, 17)
         haiku_correct, lines = haiku_split(poem)
         if haiku_correct:
-            return lines
+            for line in lines:
+                print ' '.join(line)
+            break
 
 
 # another dataset training
@@ -295,7 +288,7 @@ def generate_haiku(iddict, trans, emiss):
 # rhyming??
 if __name__ == '__main__':
     
-    num_internal = 150
+    num_internal = 50
     length = 100
 
     # computeMatrices(num_internal)
@@ -306,10 +299,13 @@ if __name__ == '__main__':
 
     EM_in, worddict = outputStream()
 
-    print generate_haiku(iddict, trans, emiss)
+    print "Haiku: "
+    generate_haiku(iddict, T, E)
 
+    print "\nSonnet:"
     generate_sonnet(iddict, T, E, EM_in)
 
+    print "\n" + str(length) + " words: "
     poem, states = philosophize(iddict, T, E, length)
     print poem
 
