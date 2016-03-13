@@ -1,16 +1,6 @@
 import numpy as np
 from dataprocessing import *
 
-def latex_matrix(matrix):
-    matrix_str = '\\begin{bmatrix}\n'
-    for i in range(len(matrix)):
-        for j in range(len(matrix[0])):
-            matrix_str += str("{0:.3f}".format(matrix[i][j])) + ' & '
-        matrix_str = matrix_str[:-2] + '\\\\\n'
-    matrix_str += '\\end{bmatrix} \n'
-    return matrix_str
-
-
 # Define our arguments and their respective sizes
 
 # state_space is all possible states y (length L)
@@ -20,6 +10,7 @@ def latex_matrix(matrix):
 # transition is matrix of transition probabilities between y_j, y_i (size LxL)
 # emission is matrix of prob of observing x from y (size mxL)
 # E is our matrix of P(y_i)'s. E[i, j] = P(y_j = i), size LxM
+# F is our matrix of P(y_i = b, y_i-1 = a), size MxLxL
 
 def MStep(state_space, obs_space, observs, E, F):
     M = len(observs)
@@ -28,14 +19,17 @@ def MStep(state_space, obs_space, observs, E, F):
     transition = np.zeros((L, L))
     emission   = np.zeros((m, L))
 
+    # Compute the numerators of the transition matrix for a single example
+    # See Lecture 8 slide 68
     transition = F.sum(axis=0)
 
-    # Emission
+    # Compute the numerators of the emission matrix for a single example
+    # See Lecture 8 slide 68
     for i in range(L):
         for j in range(M):
-            val = observs[j] # jth emission in sequence
-            emission[val, i] += E[i, j]
-        
+            # Add into the emission matrix for observation j
+            emission[observs[j], i] += E[i, j]
+
     return transition, emission
 
 
@@ -65,13 +59,12 @@ def EStep(state_space, obs_space, observs, transition, emission):
     return E, F
 
 
-# Performs the forward algorithm, returning matrix of probabilities
+# Performs the forward algorithm, returned matrix of probs is size M+1xL
 def forward(state_space, start_probs, observs, transition, emission):
     M = len(observs)
     L = len(state_space)
 
     fwd_probs = np.array(start_probs).reshape((L, 1))
-    # Do the iterative forward algorithm
     for i in range(M):
         fwd_next = np.dot(transition.T, np.diag(emission[observs[i], :]))
         fwd_next = np.dot(fwd_next, fwd_probs[:, -1]).reshape((L, 1))
@@ -81,7 +74,7 @@ def forward(state_space, start_probs, observs, transition, emission):
     return fwd_probs
 
 
-# Performs the backward algorithm, returning matrix of probabilities
+# Performs the backward algorithm, returned matrix of probs is size M+1xL
 def backward(state_space, observs, transition, emission):
     M = len(observs)
     L = len(state_space)
@@ -92,47 +85,44 @@ def backward(state_space, observs, transition, emission):
         bwd_prev = np.dot(transition.T, np.diag(emission[observs[i], :]))
         bwd_prev = np.dot(bwd_prev, bwd_probs[:,0]).reshape((L, 1))
 
-        # append in the opposite order so prev column is always in front
+        # Append in the opposite order so prev column is always in front
         bwd_probs = np.append(bwd_prev/float(sum(bwd_prev)), bwd_probs, 1)
 
     return bwd_probs
 
+
 # eps is our stopping condition
 # observs is all of our training examples
-def EM_algorithm(state_space, obs_space, transition, emission, observs, eps, epoch_size):
+def EM_algorithm(state_space, obs_space, transition, emission, observs, eps):
     L = len(state_space)
     M = len(observs)
     norm_diff = eps + 1
 
     while norm_diff > eps:
-
         transition_new = np.zeros(transition.shape)
         emission_new   = np.zeros(emission.shape)
 
-        norm = np.zeros(L)
+        # The denominators of our calculation of new matrices
+        denoms = np.zeros(L)
 
         # Make a pass thru the data
         for observ in observs:
+            # Perform an EM step to update matrices and save numerators & denoms
             E, F = EStep(state_space, obs_space, observ, transition, emission)
-
             transition_epoch, emission_epoch = MStep(state_space, obs_space, observ, E, F)
 
             emission_new += emission_epoch
             transition_new += transition_epoch
             
-            norm += E.sum(axis=1)
-        # Normalize
-        emission_new /= norm
-        transition_new /= norm
+            denoms += E.sum(axis=1)
+
+        # Do the actual division to get updated matrices
+        emission_new /= denoms
+        transition_new /= denoms
                 
         norm_diff  = np.linalg.norm(transition - transition_new) + \
                      np.linalg.norm(emission - emission_new)
         print "normdiff: ", norm_diff
-
-        # print "Transition norm:"
-        # print transition_new.sum(axis=0)
-        # print "Emission norm:"
-        # print emission_new.sum(axis=0)
 
         transition = np.copy(transition_new)
         emission   = np.copy(emission_new)
@@ -140,57 +130,30 @@ def EM_algorithm(state_space, obs_space, transition, emission, observs, eps, epo
     return transition, emission
 
 
-
-def predictSequence(transition, emission, length, start_seed=None):
-    sequence = np.zeros(length)
-    states = []
-
-    state = list(np.random.multinomial(1, transition[:, 0])).index(1)
-    sequence[0] = list(np.random.multinomial(1, emission[:, state])).index(1)
-
-    if start_seed != None:
-        sequence[0] = start_seed
-        sample = list(np.random.multinomial(1, emission[start_seed, :]))
-        state = sample.index(1)
-
-    states.append(state)
-
-    for j in range(1, length):
-        state = list(np.random.multinomial(1, transition[:, state])).index(1)
-        sequence[j] = list(np.random.multinomial(1, emission[:, state])).index(1)
-        states.append(state)
-
-    if start_seed != None:
-        sequence = sequence[::-1]
-        states = states[::-1]
-    return sequence, states
-
-
-def computeMatrices(num_internal, backwards=False):
+# Compute the transition and emission matrices with num_internal hidden states
+def computeMatrices(num_internal):
     EM_in, worddict, rhymes = outputStream()
     iddict = {y:x for x,y in worddict.iteritems()}
 
-    if backwards:
-        EM_in = [sample[::-1] for sample in EM_in]
+    # We will train our HMM to generate lines from right to left
+    # (this makes rhyming significantly easier as we just seed state 1)
+    EM_in = [sample[::-1] for sample in EM_in]
 
     flat_obs = [item for sublist in EM_in for item in sublist]
     unique_obs = len(set(flat_obs))
-    Trans = np.random.rand(num_internal, num_internal)
-    Emiss = np.random.rand(unique_obs, num_internal)
-    
-    Trans /= Trans.sum(axis=0)
-    Emiss /= Emiss.sum(axis=0)
 
-    final_t, final_e = EM_algorithm(np.array(range(num_internal)), \
-                             np.array(list(set(flat_obs))), Trans, Emiss, EM_in, .001, 1)
+    # Initialize transition & emission to random normalized matrices
+    transition = np.random.rand(num_internal, num_internal)
+    emission = np.random.rand(unique_obs, num_internal)
+    transition /= Trans.sum(axis=0)
+    emission /= Emiss.sum(axis=0)
 
-    direction = ''
-    if backwards:
-        direction = 'rev'
+    final_t, final_e = EM_algorithm(range(num_internal), list(set(flat_obs)),\
+                                    transition, emission, EM_in, .001)
 
-
-    tFile = open(os.getcwd() + "/data/trans" + str(num_internal) + direction + ".npy", "w")
-    eFile = open(os.getcwd() + "/data/emiss" + str(num_internal) + direction +".npy", "w")
+    # Save our calculate matrices so we don't have to recalculate every time
+    tFile = open(os.getcwd() + "/data/trans" + str(num_internal) + ".npy", "w")
+    eFile = open(os.getcwd() + "/data/emiss" + str(num_internal) +".npy", "w")
     dictFile = open(os.getcwd() + "/data/iddict.npy", "w+")
 
     np.save(tFile, final_t)
@@ -202,63 +165,98 @@ def computeMatrices(num_internal, backwards=False):
     dictFile.close()
 
 
-# Count syllables where poem is a string with whitespaces
-def count_syllables(poem):
-    return sum([nsyl(x) for x in poem.split(' ')[:-1]])
+# Perform a random walk thru our trained Markov model, with an optional
+# first_obs. If first_obs is not None, it is guaranteed the first element
+# of our sequence of observations we return
+def predictSequence(transition, emission, length, first_obs=None):
+    sequence = np.zeros(length)
+    states = []
+
+    # We can take 1 sample from a multinomial distribution to pick a random
+    # state and associated observation (sampling will take into account the
+    # transition & emission probabilities proportionally)
+    state = list(np.random.multinomial(1, transition[:, 0])).index(1)
+    sequence[0] = list(np.random.multinomial(1, emission[:, state])).index(1)
+
+    if first_obs != None:
+        sequence[0] = first_obs
+        state = list(np.random.multinomial(1, emission[first_obs, :])).index(1)
+
+    states.append(state)
+
+    for j in range(1, length):
+        state = list(np.random.multinomial(1, transition[:, state])).index(1)
+        sequence[j] = list(np.random.multinomial(1, emission[:, state])).index(1)
+        states.append(state)
+
+    # Reverse the sequence and states because our HMM is trained to generate
+    # lines from right to left
+    return sequence[::-1], states[::-1]
 
 
-def philosophize(iddict, trans, emiss, length, end_seed=None):
-    prediction, states = predictSequence(trans, emiss, length, end_seed)
+# Count syllables where poem_line is a line of a poem - a string with words
+# separated by spaces and no punctuation
+def count_syllables(poem_line):
+    return sum([nsyl(x) for x in poem_line.split(' ')[:-1]])
+
+
+# Return the results of a single random walk thru our Markov model
+def philosophize(iddict, trans, emiss, length, first_obs=None):
+    prediction, states = predictSequence(trans, emiss, length, first_obs)
     poem = ""
     for i in prediction:
         poem += iddict[int(i)] + " "
     return poem, states
 
 
-def philosophize_syls(iddict, trans, emiss, length, syllables):
-    poem, states = philosophize(iddict, trans, emiss, length)
+# Return the results of a single random walk thru our Markov model, with the
+# constraint that the number of syllables must be exactly 'syllables'. If
+# first_obs is not None, then we also guarantee that the last word of the
+# returned poem is the word associated with first_obs
+def philosophize_syls(iddict, trans, emiss, length, syllables, first_obs=None):
+    poem, states = philosophize(iddict, trans, emiss, length, first_obs)
     syls = count_syllables(poem)
     while syls != syllables:
-        poem, states = philosophize(iddict, T, E, length)
+        poem, states = philosophize(iddict, T, E, length, first_obs)
         syls = count_syllables(poem)
     return poem, states
 
 
-def philosophize_syls_and_rhyme(iddict, trans, emiss, length, syllables, end_seed):
-    poem, states = philosophize(iddict, trans, emiss, length, end_seed)
-    syls = count_syllables(poem)
-    while syls != syllables:
-        poem, states = philosophize(iddict, T, E, length, end_seed)
-        syls = count_syllables(poem)
-    return poem, states
-
-
+# Generate a sonnet from trained Markov model
+# samples is a list of lists, where each list is a training example (a single
+# line from a sonnet)
 def generate_sonnet(iddict, trans, emiss, samples):
     # 14 lines with 10 syllables each
-    poem = ['']*14
+    poem = [''] * 14
     for line in range(14):
         length = len(np.random.choice(samples))
         poem_line, states = philosophize_syls(iddict, trans, emiss, length, 10)
-        # print poem_line
         poem[line] = poem_line
 
     print ",\n".join(poem) + "."
 
 
+# Generate a rhyming sonnet from trained Markov model
+# samples is a list of lists as in generate_sonnet
+# rhymes is a dictionary where rhymes[i] = j means that the words associated
+# i and j rhyme
 def generate_rhyming_sonnet(iddict, trans, emiss, samples, rhymes):
     poem = [''] * 14
-    # 14 lines with abab cdcd efef gg
+    # 14 lines with rhyme scheme abab cdcd efef gg and 10 syllables each line
     for line in [0, 1, 4, 5, 8, 9, 12]:
+        # Pick a rhyming pair to seed end of our lines with
         seed1 = np.random.choice(rhymes.keys())
         seed2 = rhymes[seed1]
 
-        poem_line, states = philosophize_syls_and_rhyme(iddict, trans, emiss, \
+        poem_line, states = philosophize_syls(iddict, trans, emiss, \
             len(np.random.choice(samples)), 10, seed1)
-        poem_line2, states2 = philosophize_syls_and_rhyme(iddict, trans, emiss, \
+        poem_line2, states2 = philosophize_syls(iddict, trans, emiss, \
             len(np.random.choice(samples)), 10, seed2)
 
         poem[line] = poem_line
+
         if line == 12:
+            # Last couplet, so rhyme scheme is different
             poem[line+1] = poem_line2
         else:
             poem[line+2] = poem_line2
@@ -266,94 +264,93 @@ def generate_rhyming_sonnet(iddict, trans, emiss, samples, rhymes):
     print ",\n".join(poem) + "."
 
 
+# Checks if a given poem (string with words separated by whitespace) which must
+# have 17 syllables can be a haiku or not - if it can be split into the 5 7 5
+# structure while preserving words
 def haiku_split(poem):
     words = poem.split()
     lines = []
 
-    syl_count = 0
-    tmp = []
-    i = 0
+    # Check if we can get exactly 5 syllables for the first line of our haiku
+    syl_count, i, line = 0, 0, []
     while True:
         if syl_count + nsyl(words[i]) > 5:
             break
-        tmp.append(words[i])
+        line.append(words[i])
         syl_count += nsyl(words[i])
         i += 1
 
+    # If not return false
     if syl_count != 5:
-        return False, lines
+        return False
 
-    lines.append(tmp)
+    lines.append(line)
 
-    syl_count = 0
-    tmp = []
+    # Check if we can get exactly 7 syllables for second line of our haiku
+    syl_count, line = 0, []
     while True:
         if syl_count + nsyl(words[i]) > 7:
             break
-        tmp.append(words[i])
+        line.append(words[i])
         syl_count += nsyl(words[i])
         i += 1
 
+    # If not return false
     if syl_count != 7:
-        return False, lines
+        return False
 
-    lines.append(tmp)
+    lines.append(line)
     lines.append(words[i:])
 
-    return True, lines
+    return lines
 
 
+# Generate a haiku from trained Markov model, with the 5 7 5 syllable scheme
 def generate_haiku(iddict, trans, emiss):
-    # 5 7 5 syllable scheme, 17 total
     while True:
-        length = np.random.randint(12, 15)
+        length = np.random.randint(12, 15) # Pick reasonable length for haiku
+        
+        # 17 total syllables
         poem, states = philosophize_syls(iddict, trans, emiss, length, 17)
-        haiku_correct, lines = haiku_split(poem)
-        if haiku_correct:
-            for line in lines:
+        
+        # If it's a valid haiku, we're done; otherwise, keep going
+        haiku = haiku_split(poem)
+        if haiku:
+            for line in haiku:
                 print ' '.join(line)
-            break
+            return
 
 
 if __name__ == '__main__':
-    
-    num_internal = 25
-    length = 100
+    # 50 internal states for this Markov model
+    num_internal = 50
 
-    # computeMatrices(num_internal=num_internal, backwards=False)
-    # computeMatrices(num_internal=num_internal, backwards=True)
+    # Compute and save transition/emission matrices
+    # computeMatrices(num_internal)
     
+    # Load in computed transition matrices
     iddict = np.load(os.getcwd() + "/data/iddict.npy").item()
     T = np.load(os.getcwd() + "/data/trans" + str(num_internal) + ".npy")
     E = np.load(os.getcwd() + "/data/emiss" + str(num_internal) + ".npy")
 
-    T_rev = np.load(os.getcwd() + "/data/trans" + str(num_internal) + "rev.npy")
-    E_rev = np.load(os.getcwd() + "/data/emiss" + str(num_internal) + "rev.npy")
-
+    # Get training examples (lines of sonnets) and rhyming dictionary
     EM_in, worddict, rhymes = outputStream()
 
-    print "Haiku: "
+    print "\nHaiku: "
     generate_haiku(iddict, T, E)
 
     print "\nSonnet:"
     generate_sonnet(iddict, T, E, EM_in)
 
     print "\nRhyming sonnet:"
-    generate_rhyming_sonnet(iddict, T_rev, E_rev, EM_in, rhymes)
+    generate_rhyming_sonnet(iddict, T, E, EM_in, rhymes)
 
-    print "\n" + str(length) + " words: "
+    length = 7
+    print "\n" + str(length) + " words sampled from model: "
     poem, states = philosophize(iddict, T, E, length)
     print poem
 
-    # trollpoem = True
-    # p = 0
-    # if trollpoem:
-    #     while p != 10:
-    #         poem, states = philosophize(iddict, T, E, 7)
-    #         p = sum([nsyl(x) for x in poem.split(' ')[:-1]])
-
-    # print poem
-
+    # Do some visualization
     visualize = False
     if visualize:
         num_states = 7

@@ -15,17 +15,17 @@ def nsyl(word):
 
 def loadShakespeare():
   '''Returns a list of sonnets, with each line being a separate element'''
-  f = open(os.getcwd() + '/../project2data/shakespeare.txt')
+
+  # Pick which dataset to train on
+  # f = open(os.getcwd() + '/../project2data/shakespeare.txt')
+  f = open(os.getcwd() + '/../project2data/shakespeare_spenser.txt')
   lines = f.readlines()
   sonnets = []
   sonnet = []
   for line in lines:
     line = line.strip()
     for punct in [',', '.', '?', '!', ':', ';']:
-      # where all the punctuation stufffff happens
-      line = line.replace(punct, '')   
-    # recently added and maaayy have bad effects??
-    # line = line.replace('-', ' ')
+      line = line.replace(punct, '')
     if line.isdigit():
       sonnets.append(sonnet)
       sonnet = []
@@ -89,13 +89,9 @@ def outputStream():
 
     for i in [0, 4, 8]:
       rhyme_dict[sonnet_bagged[i][-1]] = sonnet_bagged[i+2][-1]
-      rhyme_dict[sonnet_bagged[i+2][-1]] = sonnet_bagged[i][-1]
-      
       rhyme_dict[sonnet_bagged[i+1][-1]] = sonnet_bagged[i+3][-1]
-      rhyme_dict[sonnet_bagged[i+3][-1]] = sonnet_bagged[i+1][-1]
 
     if len(sonnet_bagged) == 14:
       rhyme_dict[sonnet_bagged[12][-1]] = sonnet_bagged[13][-1]
-      rhyme_dict[sonnet_bagged[13][-1]] = sonnet_bagged[12][-1]
 
   return output, bagdict, rhyme_dict
