@@ -32,6 +32,9 @@ def loadShakespeare():
 
 def processWord(word):
   word = word.replace("'", "")
+  word = word.replace('(', '')
+  word = word.replace(')', '')
+  
   word = word.lower()  
   return word
 
