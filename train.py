@@ -166,7 +166,7 @@ def predictSequence(transition, emission, length, start_seed=None):
     return sequence, states
 
 
-def computeMatrices(num_interal, backwards=False):
+def computeMatrices(num_internal, backwards=False):
     EM_in, worddict, rhymes = outputStream()
     iddict = {y:x for x,y in worddict.iteritems()}
 
@@ -235,13 +235,14 @@ def philosophize_syls_and_rhyme(iddict, trans, emiss, length, syllables, end_see
 
 def generate_sonnet(iddict, trans, emiss, samples):
     # 14 lines with 10 syllables each
+    poem = ['']*14
     for line in range(14):
         length = len(np.random.choice(samples))
         poem_line, states = philosophize_syls(iddict, trans, emiss, length, 10)
-        if line == 13:
-            print poem_line + "."
-        else:
-            print poem_line + ","
+        # print poem_line
+        poem[line] = poem_line
+
+    print ",\n".join(poem) + "."
 
 
 def generate_rhyming_sonnet(iddict, trans, emiss, samples, rhymes):
@@ -319,8 +320,8 @@ if __name__ == '__main__':
     num_internal = 25
     length = 100
 
-    computeMatrices(num_internal=num_internal, backwards=False)
-    computeMatrices(num_internal=num_internal, backwards=True)
+    # computeMatrices(num_internal=num_internal, backwards=False)
+    # computeMatrices(num_internal=num_internal, backwards=True)
     
     iddict = np.load(os.getcwd() + "/data/iddict.npy").item()
     T = np.load(os.getcwd() + "/data/trans" + str(num_internal) + ".npy")
