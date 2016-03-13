@@ -22,7 +22,9 @@ def loadShakespeare():
   for line in lines:
     line = line.strip()
     for punct in [',', '.', '?', '!', ':', ';']:
-      line = line.replace(punct, ' ' + punct)    
+      line = line.replace(punct, ' ' + punct)   
+    # recently added and maaayy have bad effects??
+    # line = line.replace('-', ' ')
     if line.isdigit():
       sonnets.append(sonnet)
       sonnet = []

@@ -151,11 +151,12 @@ def predictSequence(transition, emission, length):
     Trans_total = transition.sum(axis=0)
     rando = np.random.uniform(0, Emiss_total.sum())
     cumulative, i = emission[0][0], 0
+    states = []
     while(rando > cumulative):
         i += 1
         cumulative += emission[i/len(emission[0])][i % len(emission[0])]
     sequence[0], state = i/len(emission[0]), i % len(emission[0])
-
+    states.append(state)
     for j in range(1, length):
         rando = np.random.uniform(0, Trans_total[state])
         cumulative, i = transition[0][state], 0
@@ -164,7 +165,7 @@ def predictSequence(transition, emission, length):
             cumulative += transition[i][state]
 
         state = i
-
+        states.append(state)
         rando = np.random.uniform(0, Emiss_total[state])
         cumulative, i = emission[0][state], 0
         while(rando > cumulative):
@@ -174,7 +175,7 @@ def predictSequence(transition, emission, length):
         sequence[j] = i 
 
 
-    return sequence
+    return sequence, states
 
 
 def computeMatrices(num_interal):
@@ -207,27 +208,34 @@ def computeMatrices(num_interal):
 
 
 def philosophize(iddict, trans, emiss, length):
-    prediction = predictSequence(trans, emiss, length)
+    prediction, states = predictSequence(trans, emiss, length)
     poem = ""
     for i in prediction:
         poem += iddict[int(i)] + " "
-    return poem
+    return poem, states
 
+    
 
 if __name__ == '__main__':
-    '''
+    
     num_internal = 7
     length = 100
 
-    computeMatrices(num_internal)
-
+    #computeMatrices(num_internal)
+    
     iddict = np.load(os.getcwd() + "/data/iddict.npy").item()
     T = np.load(os.getcwd() + "/data/trans" + str(num_internal) + ".npy")
     E = np.load(os.getcwd() + "/data/emiss" + str(num_internal) + ".npy")
-
-
-    print philosophize(iddict, T, E, length)
-    '''
+    
+    
+    poem, states = philosophize(iddict, T, E, length)
+    print states
+    trollpoem = True
+    p = 0
+    if trollpoem:
+        while p != 10:
+            poem, states = philosophize(iddict, T, E, 7)
+            p = sum([nsyl(x) for x in poem.split(' ')[:-1]])
     visualize = True
     if visualize:
         num_states = 7
@@ -260,7 +268,6 @@ if __name__ == '__main__':
             print 'verbs', pos[state].count('VERB')
             print 'adjectives', pos[state].count('ADJ')
             print 'adverbs', pos[state].count('ADV')
-
 
 
 
