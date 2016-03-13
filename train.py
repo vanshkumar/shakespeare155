@@ -180,8 +180,6 @@ def predictSequence(transition, emission, length):
 def computeMatrices(num_interal):
     EM_in, worddict = outputStream()
     iddict = {y:x for x,y in worddict.iteritems()}
-    iddict[0] = ','
-    iddict[1] = '.'
 
     flat_obs = [item for sublist in EM_in for item in sublist]
     unique_obs = len(set(flat_obs))
@@ -208,8 +206,18 @@ def computeMatrices(num_interal):
     dictFile.close()
 
 
+def visualize():
+    EM_in, worddict = outputStream()
+    iddict = {y:x for x,y in worddict.iteritems()}
 
-
+    flat_obs = [item for sublist in EM_in for item in sublist]
+    countdict = {}
+    for word in list(set(flat_obs)):
+        countdict[word] = flat_obs.count(word)
+    speechdict = partsofSpeech(worddict)    
+    
+    
+    
 def philosophize(iddict, trans, emiss, length):
     prediction = predictSequence(trans, emiss, length)
     poem = ""
@@ -230,7 +238,7 @@ if __name__ == '__main__':
 
 
     print philosophize(iddict, T, E, length)
-
+    out = visualize()
 
 
 

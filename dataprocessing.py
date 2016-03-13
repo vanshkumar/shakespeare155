@@ -1,9 +1,9 @@
 import os
 import numpy
-#import nltk
-#from nltk.corpus import cmudict
+import nltk
+from nltk.corpus import cmudict
 
-#d = cmudict.dict()
+d = cmudict.dict()
 def nsyl(word):
   '''finds the number of syllables in a word'''
   return [len(list(y for y in x if y[-1].isdigit())) for x in d[word.lower()]] 
@@ -53,7 +53,8 @@ def createBag():
 def partsofSpeech(bagdict):
   speechdict = {}
   for word in bagdict.keys():
-    speechdict[word] = 000000
+    speechdict[word] = nltk.pos_tag([word])[0][1]
+  return speechdict
 
 def convertToBag(line, bagdict):
   '''Converts line to bag representation'''
