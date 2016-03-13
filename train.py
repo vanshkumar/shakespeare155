@@ -33,9 +33,11 @@ def MStep(state_space, obs_space, observs, E, F):
 
     # Emission
     for i in range(L):
+        # emission[np.array(observs), i] += E[i, np.array(range(M))]
         for j in range(M):
             val = observs[j] # jth emission in sequence
             emission[val, i] += E[i, j]
+        # print emission[np.array(observs), i]
 
     return transition, emission
 
@@ -129,6 +131,12 @@ def EM_algorithm(state_space, obs_space, transition, emission, observs, eps, epo
         norm_diff  = np.linalg.norm(transition - transition_new) + \
                      np.linalg.norm(emission - emission_new)
         print "normdiff: ", norm_diff
+
+        # print "Transition norm:"
+        # print transition_new.sum(axis=0)
+        # print "Emission norm:"
+        # print emission_new.sum(axis=0)
+
         transition = np.copy(transition_new)
         emission   = np.copy(emission_new)
 
@@ -211,10 +219,10 @@ def philosophize(iddict, trans, emiss, length):
 
 
 if __name__ == '__main__':
-    num_internal = 10
+    num_internal = 7
     length = 100
 
-    # computeMatrices(num_internal)
+    computeMatrices(num_internal)
 
     iddict = np.load(os.getcwd() + "/data/iddict.npy").item()
     T = np.load(os.getcwd() + "/data/trans" + str(num_internal) + ".npy")
