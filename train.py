@@ -183,7 +183,6 @@ def computeMatrices(num_interal):
 
     flat_obs = [item for sublist in EM_in for item in sublist]
     unique_obs = len(set(flat_obs))
-
     Trans = np.random.rand(num_internal, num_internal)
     Emiss = np.random.rand(unique_obs, num_internal)
     
@@ -191,7 +190,7 @@ def computeMatrices(num_interal):
     Emiss /= Emiss.sum(axis=0)
 
     final_t, final_e = EM_algorithm(np.array(range(num_internal)), \
-                             np.array(list(set(flat_obs))), Trans, Emiss, EM_in, .000001, 1)
+                             np.array(list(set(flat_obs))), Trans, Emiss, EM_in, .005, 1)
 
 
     tFile = open(os.getcwd() + "/data/trans" + str(num_internal) + ".npy", "w")
@@ -207,18 +206,6 @@ def computeMatrices(num_interal):
     dictFile.close()
 
 
-def visualize():
-    EM_in, worddict = outputStream()
-    iddict = {y:x for x,y in worddict.iteritems()}
-
-    flat_obs = [item for sublist in EM_in for item in sublist]
-    countdict = {}
-    for word in list(set(flat_obs)):
-        countdict[word] = flat_obs.count(word)
-    speechdict = partsofSpeech(worddict)    
-    
-    
-    
 def philosophize(iddict, trans, emiss, length):
     prediction = predictSequence(trans, emiss, length)
     poem = ""
@@ -228,10 +215,11 @@ def philosophize(iddict, trans, emiss, length):
 
 
 if __name__ == '__main__':
-    num_internal = 100
-    length = 10
+    '''
+    num_internal = 7
+    length = 100
 
-    # computeMatrices(num_internal)
+    computeMatrices(num_internal)
 
     iddict = np.load(os.getcwd() + "/data/iddict.npy").item()
     T = np.load(os.getcwd() + "/data/trans" + str(num_internal) + ".npy")
@@ -239,14 +227,39 @@ if __name__ == '__main__':
 
 
     print philosophize(iddict, T, E, length)
-    # out = visualize()
-
-
-
-
-
-
-
+    '''
+    visualize = True
+    if visualize:
+        num_states = 7
+        EM_in, worddict = outputStream()
+        iddict = {y:x for x,y in worddict.iteritems()}
+        topdict, syls, pos = {}, {}, {}
+        flat_obs = [item for sublist in EM_in for item in sublist]
+        countdict = {}
+        for word in list(set(flat_obs)):
+            countdict[word] = flat_obs.count(word)
+        speechdict = partsofSpeech(worddict)    
+        E = np.load(os.getcwd() + "/data/emiss" + str(num_states) + ".npy")
+        E = E.transpose()
+        for elem in range(len(E[0])):
+            for state in range(num_states):
+                # divide the E matrix by the frequency of the words
+                a = 1
+                E[state][elem] /= countdict[elem]
+        for state in range(num_states):
+            # returns an array sorted by the size of the argument.  Min is first
+            topwords = E[state].argsort()[-10:]
+            topwords1 = E[state].argsort()[-100:]
+            print topwords
+            topdict[state] = [iddict[x] for x in topwords] 
+            syls[state] = [nsyl(iddict[x]) for x in topwords1]
+            pos[state] = [speechdict[iddict[x]] for x in topwords1]
+            print 'average syllables for top 100 words', \
+                  sum(syls[state]) / float(np.count_nonzero(syls[state]))
+            print 'nouns', pos[state].count('NOUN')
+            print 'verbs', pos[state].count('VERB')
+            print 'adjectives', pos[state].count('ADJ')
+            print 'adverbs', pos[state].count('ADV')
 
 
 

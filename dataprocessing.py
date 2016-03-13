@@ -6,7 +6,11 @@ from nltk.corpus import cmudict
 d = cmudict.dict()
 def nsyl(word):
   '''finds the number of syllables in a word'''
-  return [len(list(y for y in x if y[-1].isdigit())) for x in d[word.lower()]] 
+  try:
+    out = [len(list(y for y in x if y[-1].isdigit())) for x in d[word.lower()]]
+  except KeyError:
+    return 0
+  return out[0]
 
 
 def loadShakespeare():
@@ -56,7 +60,7 @@ def createBag():
 def partsofSpeech(bagdict):
   speechdict = {}
   for word in bagdict.keys():
-    speechdict[word] = nltk.pos_tag([word])[0][1]
+    speechdict[word] = str(nltk.pos_tag([word], tagset = 'universal')[0][1])
   return speechdict
 
 def convertToBag(line, bagdict):
