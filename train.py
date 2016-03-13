@@ -143,17 +143,10 @@ def EM_algorithm(state_space, obs_space, transition, emission, observs, eps, epo
 
 def predictSequence(transition, emission, length, start_seed=None):
     sequence = np.zeros(length)
-
-    Emiss_total = emission.sum(axis=0)
-    Trans_total = transition.sum(axis=0)
-
-    rando = np.random.uniform(0, Emiss_total.sum())
-    cumulative, i = emission[0][0], 0
     states = []
-    while(rando > cumulative):
-        i += 1
-        cumulative += emission[i/len(emission[0])][i % len(emission[0])]
-    sequence[0], state = i/len(emission[0]), i % len(emission[0])
+
+    state = list(np.random.multinomial(1, transition[:, 0])).index(1)
+    sequence[0] = list(np.random.multinomial(1, emission[:, state])).index(1)
 
     if start_seed != None:
         sequence[0] = start_seed
@@ -161,22 +154,11 @@ def predictSequence(transition, emission, length, start_seed=None):
         state = sample.index(1)
 
     states.append(state)
+
     for j in range(1, length):
-        rando = np.random.uniform(0, Trans_total[state])
-        cumulative, i = transition[0][state], 0
-        while(rando > cumulative):
-            i += 1
-            cumulative += transition[i][state]
-
-        state = i
+        state = list(np.random.multinomial(1, transition[:, state])).index(1)
+        sequence[j] = list(np.random.multinomial(1, emission[:, state])).index(1)
         states.append(state)
-        rando = np.random.uniform(0, Emiss_total[state])
-        cumulative, i = emission[0][state], 0
-        while(rando > cumulative):
-            i += 1
-            cumulative += emission[i][state]
-
-        sequence[j] = i 
 
     if start_seed != None:
         sequence = sequence[::-1]
@@ -332,16 +314,13 @@ def generate_haiku(iddict, trans, emiss):
             break
 
 
-# another dataset training
-# haikus
-# rhyming??
 if __name__ == '__main__':
     
-    num_internal = 50
+    num_internal = 25
     length = 100
 
-    # computeMatrices(num_internal, False)
-    # computeMatrices(num_internal, True)
+    computeMatrices(num_internal=num_internal, backwards=False)
+    computeMatrices(num_internal=num_internal, backwards=True)
     
     iddict = np.load(os.getcwd() + "/data/iddict.npy").item()
     T = np.load(os.getcwd() + "/data/trans" + str(num_internal) + ".npy")
@@ -406,10 +385,3 @@ if __name__ == '__main__':
             print 'verbs', pos[state].count('VERB')
             print 'adjectives', pos[state].count('ADJ')
             print 'adverbs', pos[state].count('ADV')
-
-
-
-
-
-
-
