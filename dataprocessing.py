@@ -79,7 +79,23 @@ def outputStream():
   a = loadShakespeare()
   bagdict = createBag()
   output = []
+  rhyme_dict = {}
   for sonnet in a:
+    sonnet_bagged = []
     for line in sonnet:
-      output.append(convertToBag(line, bagdict))
-  return output, bagdict
+      bagged = convertToBag(line, bagdict)
+      sonnet_bagged.append(bagged)
+      output.append(bagged)
+
+    for i in [0, 4, 8]:
+      rhyme_dict[sonnet_bagged[i][-1]] = sonnet_bagged[i+2][-1]
+      rhyme_dict[sonnet_bagged[i+2][-1]] = sonnet_bagged[i][-1]
+      
+      rhyme_dict[sonnet_bagged[i+1][-1]] = sonnet_bagged[i+3][-1]
+      rhyme_dict[sonnet_bagged[i+3][-1]] = sonnet_bagged[i+1][-1]
+
+    if len(sonnet_bagged) == 14:
+      rhyme_dict[sonnet_bagged[12][-1]] = sonnet_bagged[13][-1]
+      rhyme_dict[sonnet_bagged[13][-1]] = sonnet_bagged[12][-1]
+
+  return output, bagdict, rhyme_dict

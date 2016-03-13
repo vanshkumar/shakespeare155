@@ -141,11 +141,12 @@ def EM_algorithm(state_space, obs_space, transition, emission, observs, eps, epo
 
 
 
-def predictSequence(transition, emission, length):
+def predictSequence(transition, emission, length, start_seed=None):
     sequence = np.zeros(length)
 
     Emiss_total = emission.sum(axis=0)
     Trans_total = transition.sum(axis=0)
+
     rando = np.random.uniform(0, Emiss_total.sum())
     cumulative, i = emission[0][0], 0
     states = []
@@ -153,6 +154,12 @@ def predictSequence(transition, emission, length):
         i += 1
         cumulative += emission[i/len(emission[0])][i % len(emission[0])]
     sequence[0], state = i/len(emission[0]), i % len(emission[0])
+
+    if start_seed != None:
+        sequence[0] = start_seed
+        sample = list(np.random.multinomial(1, emission[start_seed, :]))
+        state = sample.index(1)
+
     states.append(state)
     for j in range(1, length):
         rando = np.random.uniform(0, Trans_total[state])
@@ -171,13 +178,18 @@ def predictSequence(transition, emission, length):
 
         sequence[j] = i 
 
-
+    if start_seed != None:
+        sequence = sequence[::-1]
+        states = states[::-1]
     return sequence, states
 
 
-def computeMatrices(num_interal):
-    EM_in, worddict = outputStream()
+def computeMatrices(num_interal, backwards=False):
+    EM_in, worddict, rhymes = outputStream()
     iddict = {y:x for x,y in worddict.iteritems()}
+
+    if backwards:
+        EM_in = [sample[::-1] for sample in EM_in]
 
     flat_obs = [item for sublist in EM_in for item in sublist]
     unique_obs = len(set(flat_obs))
@@ -190,9 +202,13 @@ def computeMatrices(num_interal):
     final_t, final_e = EM_algorithm(np.array(range(num_internal)), \
                              np.array(list(set(flat_obs))), Trans, Emiss, EM_in, .001, 1)
 
+    direction = ''
+    if backwards:
+        direction = 'rev'
 
-    tFile = open(os.getcwd() + "/data/trans" + str(num_internal) + ".npy", "w")
-    eFile = open(os.getcwd() + "/data/emiss" + str(num_internal) + ".npy", "w")
+
+    tFile = open(os.getcwd() + "/data/trans" + str(num_internal) + direction + ".npy", "w")
+    eFile = open(os.getcwd() + "/data/emiss" + str(num_internal) + direction +".npy", "w")
     dictFile = open(os.getcwd() + "/data/iddict.npy", "w+")
 
     np.save(tFile, final_t)
@@ -209,8 +225,8 @@ def count_syllables(poem):
     return sum([nsyl(x) for x in poem.split(' ')[:-1]])
 
 
-def philosophize(iddict, trans, emiss, length):
-    prediction, states = predictSequence(trans, emiss, length)
+def philosophize(iddict, trans, emiss, length, end_seed=None):
+    prediction, states = predictSequence(trans, emiss, length, end_seed)
     poem = ""
     for i in prediction:
         poem += iddict[int(i)] + " "
@@ -226,12 +242,45 @@ def philosophize_syls(iddict, trans, emiss, length, syllables):
     return poem, states
 
 
+def philosophize_syls_and_rhyme(iddict, trans, emiss, length, syllables, end_seed):
+    poem, states = philosophize(iddict, trans, emiss, length, end_seed)
+    syls = count_syllables(poem)
+    while syls != syllables:
+        poem, states = philosophize(iddict, T, E, length, end_seed)
+        syls = count_syllables(poem)
+    return poem, states
+
+
 def generate_sonnet(iddict, trans, emiss, samples):
     # 14 lines with 10 syllables each
     for line in range(14):
         length = len(np.random.choice(samples))
         poem_line, states = philosophize_syls(iddict, trans, emiss, length, 10)
-        print poem_line + ","
+        if line == 13:
+            print poem_line + "."
+        else:
+            print poem_line + ","
+
+
+def generate_rhyming_sonnet(iddict, trans, emiss, samples, rhymes):
+    poem = [''] * 14
+    # 14 lines with abab cdcd efef gg
+    for line in [0, 1, 4, 5, 8, 9, 12]:
+        seed1 = np.random.choice(rhymes.keys())
+        seed2 = rhymes[seed1]
+
+        poem_line, states = philosophize_syls_and_rhyme(iddict, trans, emiss, \
+            len(np.random.choice(samples)), 10, seed1)
+        poem_line2, states2 = philosophize_syls_and_rhyme(iddict, trans, emiss, \
+            len(np.random.choice(samples)), 10, seed2)
+
+        poem[line] = poem_line
+        if line == 12:
+            poem[line+1] = poem_line2
+        else:
+            poem[line+2] = poem_line2
+
+    print ",\n".join(poem) + "."
 
 
 def haiku_split(poem):
@@ -291,19 +340,26 @@ if __name__ == '__main__':
     num_internal = 50
     length = 100
 
-    # computeMatrices(num_internal)
+    # computeMatrices(num_internal, False)
+    # computeMatrices(num_internal, True)
     
     iddict = np.load(os.getcwd() + "/data/iddict.npy").item()
     T = np.load(os.getcwd() + "/data/trans" + str(num_internal) + ".npy")
     E = np.load(os.getcwd() + "/data/emiss" + str(num_internal) + ".npy")
 
-    EM_in, worddict = outputStream()
+    T_rev = np.load(os.getcwd() + "/data/trans" + str(num_internal) + "rev.npy")
+    E_rev = np.load(os.getcwd() + "/data/emiss" + str(num_internal) + "rev.npy")
+
+    EM_in, worddict, rhymes = outputStream()
 
     print "Haiku: "
     generate_haiku(iddict, T, E)
 
     print "\nSonnet:"
     generate_sonnet(iddict, T, E, EM_in)
+
+    print "\nRhyming sonnet:"
+    generate_rhyming_sonnet(iddict, T_rev, E_rev, EM_in, rhymes)
 
     print "\n" + str(length) + " words: "
     poem, states = philosophize(iddict, T, E, length)
