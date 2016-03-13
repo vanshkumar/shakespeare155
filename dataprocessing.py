@@ -22,7 +22,8 @@ def loadShakespeare():
   for line in lines:
     line = line.strip()
     for punct in [',', '.', '?', '!', ':', ';']:
-      line = line.replace(punct, ' ' + punct)   
+      # where all the punctuation stufffff happens
+      line = line.replace(punct, '')   
     # recently added and maaayy have bad effects??
     # line = line.replace('-', ' ')
     if line.isdigit():
