@@ -231,15 +231,68 @@ def generate_sonnet(iddict, trans, emiss, samples):
     for line in range(14):
         length = len(np.random.choice(samples))
         poem_line, states = philosophize_syls(iddict, trans, emiss, length, 10)
-        print poem_line, ","
+        print poem_line + ","
 
 
-# distribution of lengths of sentences
-# add commas at the end of every line
-# end of every sonnet, add period
+def haiku_split(poem):
+    words = poem.split()
+
+    lines = []
+
+    syl_count = 0
+    tmp = []
+    i = 0
+    while True:
+        if syl_count + nsyl(word[i]) > 5:
+            i += 1
+            break
+        tmp.append(word[i])
+        syl_count += nsyl(word)
+        i += 1
+
+    if syl_count != 5:
+        return False, lines
+
+    lines.append(tmp)
+
+    syl_count = 0
+    tmp = []
+    while True:
+        if syl_count + nsyl(word[i]) > 7:
+            i += 1
+            break
+        tmp.append(word[i])
+        syl_count += nsyl(word)
+        i += 1
+
+    if syl_count != 7:
+        return False, lines
+
+    lines.append(tmp)
+
+    if count_syllables(' '.join(words[i:])) != 5:
+        return False, lines
+
+    lines.append(words[i:])
+
+    return True, lines
+
+
+def generate_haiku(iddict, trans, emiss):
+    # 5 7 5 syllable scheme, 17 total
+    length = np.random.randint(11, 16)
+    poem, states = philosophize_syls(iddict, trans, emiss, length, 17)
+    while True:
+        length = np.random.randint(11, 16)
+        poem, states = philosophize_syls(iddict, trans, emiss, length, 17)
+        haiku_correct, lines = haiku_split(poem)
+        if haiku_correct:
+            return lines
+
 
 # another dataset training
 # haikus
+# rhyming??
 if __name__ == '__main__':
     
     num_internal = 150
@@ -252,6 +305,8 @@ if __name__ == '__main__':
     E = np.load(os.getcwd() + "/data/emiss" + str(num_internal) + ".npy")
 
     EM_in, worddict = outputStream()
+
+    print generate_haiku(iddict, trans, emiss)
 
     generate_sonnet(iddict, T, E, EM_in)
 
