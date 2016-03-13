@@ -1,6 +1,5 @@
 import numpy as np
 from dataprocessing import *
-import random as rand
 
 def latex_matrix(matrix):
     matrix_str = '\\begin{bmatrix}\n'
@@ -33,12 +32,10 @@ def MStep(state_space, obs_space, observs, E, F):
 
     # Emission
     for i in range(L):
-        # emission[np.array(observs), i] += E[i, np.array(range(M))]
         for j in range(M):
             val = observs[j] # jth emission in sequence
             emission[val, i] += E[i, j]
-        # print emission[np.array(observs), i]
-
+        
     return transition, emission
 
 
@@ -191,7 +188,7 @@ def computeMatrices(num_interal):
     Emiss /= Emiss.sum(axis=0)
 
     final_t, final_e = EM_algorithm(np.array(range(num_internal)), \
-                             np.array(list(set(flat_obs))), Trans, Emiss, EM_in, .005, 1)
+                             np.array(list(set(flat_obs))), Trans, Emiss, EM_in, .001, 1)
 
 
     tFile = open(os.getcwd() + "/data/trans" + str(num_internal) + ".npy", "w")
@@ -207,6 +204,11 @@ def computeMatrices(num_interal):
     dictFile.close()
 
 
+# Count syllables where poem is a string with whitespaces
+def count_syllables(poem):
+    return sum([nsyl(x) for x in poem.split(' ')[:-1]])
+
+
 def philosophize(iddict, trans, emiss, length):
     prediction, states = predictSequence(trans, emiss, length)
     poem = ""
@@ -214,29 +216,58 @@ def philosophize(iddict, trans, emiss, length):
         poem += iddict[int(i)] + " "
     return poem, states
 
-    
 
+def philosophize_syls(iddict, trans, emiss, length, syllables):
+    poem, states = philosophize(iddict, trans, emiss, length)
+    syls = count_syllables(poem)
+    while syls != syllables:
+        poem, states = philosophize(iddict, T, E, length)
+        syls = count_syllables(poem)
+    return poem, states
+
+
+def generate_sonnet(iddict, trans, emiss, samples):
+    # 14 lines with 10 syllables each
+    for line in range(14):
+        length = len(np.random.choice(samples))
+        poem_line, states = philosophize_syls(iddict, trans, emiss, length, 10)
+        print poem_line, ","
+
+
+# distribution of lengths of sentences
+# add commas at the end of every line
+# end of every sonnet, add period
+
+# another dataset training
+# haikus
 if __name__ == '__main__':
     
-    num_internal = 7
+    num_internal = 150
     length = 100
 
-    #computeMatrices(num_internal)
+    # computeMatrices(num_internal)
     
     iddict = np.load(os.getcwd() + "/data/iddict.npy").item()
     T = np.load(os.getcwd() + "/data/trans" + str(num_internal) + ".npy")
     E = np.load(os.getcwd() + "/data/emiss" + str(num_internal) + ".npy")
-    
-    
+
+    EM_in, worddict = outputStream()
+
+    generate_sonnet(iddict, T, E, EM_in)
+
     poem, states = philosophize(iddict, T, E, length)
-    print states
-    trollpoem = True
-    p = 0
-    if trollpoem:
-        while p != 10:
-            poem, states = philosophize(iddict, T, E, 7)
-            p = sum([nsyl(x) for x in poem.split(' ')[:-1]])
-    visualize = True
+    print poem
+
+    # trollpoem = True
+    # p = 0
+    # if trollpoem:
+    #     while p != 10:
+    #         poem, states = philosophize(iddict, T, E, 7)
+    #         p = sum([nsyl(x) for x in poem.split(' ')[:-1]])
+
+    # print poem
+
+    visualize = False
     if visualize:
         num_states = 7
         EM_in, worddict = outputStream()
